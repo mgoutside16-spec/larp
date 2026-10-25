@@ -1,7 +1,8 @@
 -- Additive, repeatable migration. Run AFTER schema.sql, account-update.sql and
 -- player-updates.sql. Existing private workshop/account policies are unchanged.
 -- Active projects become public player material automatically; print templates,
--- unreferenced media, account data and Storage listing remain private.
+-- unreferenced media and account data remain private. Metadata/signing for the
+-- same public player files is permitted; Storage context GUCs are not required.
 begin;
 -- Prevent a save/publication from escaping the initial version/binding backfill.
 lock table public.workshop_projects in exclusive mode;
@@ -168,7 +169,8 @@ returns boolean language sql stable security definer set search_path = '' as $$
   where p.status='active' and (p.document->>'packageId')::uuid=s.game_id
    and b->>'kind' in ('image','audio','video') and p_name=p.id::text||'/'||(b->>'value'));
 $$;
--- Same guarded Storage compatibility logic as player-download-access.sql.
+-- Legacy compatibility helpers retained for installed clients; the public
+-- player policies below authorize file references without relying on context.
 create or replace function public.player_storage_encode_path(p_path text)
 returns text language plpgsql immutable strict set search_path = '' as $$
 declare bytes bytea:=pg_catalog.convert_to(p_path,'UTF8'); result text:=''; i integer; b integer;
@@ -197,15 +199,12 @@ grant execute on function public.player_storage_is_file_get(text,text) to anon,a
 
 drop policy if exists player_auto_media_get on storage.objects;
 create policy player_auto_media_get on storage.objects for select to anon,authenticated
- using(bucket_id='workshop-media'
-  and public.player_storage_is_file_get(bucket_id,name)
-  and public.player_auto_media_referenced(name));
+ using(bucket_id='workshop-media' and public.player_auto_media_referenced(name));
 
--- Preserve the legacy archive protocol with the same Storage GET guard.
+-- Preserve the legacy archive protocol and current-release restriction.
 drop policy if exists player_release_read on storage.objects;
 create policy player_release_read on storage.objects for select to anon,authenticated
- using(bucket_id='player-releases' and public.player_storage_is_file_get(bucket_id,name)
-  and public.player_release_is_current(name));
+ using(bucket_id='player-releases' and public.player_release_is_current(name));
 
 create table if not exists public.player_participants (
  participant_id uuid primary key default gen_random_uuid(),

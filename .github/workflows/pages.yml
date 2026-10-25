@@ -99,6 +99,9 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f backend/player-download-access.sql
           psql -v ON_ERROR_STOP=1 -f backend/player-download-access.sql
           psql -v ON_ERROR_STOP=1 -f backend/test-player-download-access.sql
+          psql -v ON_ERROR_STOP=1 -f backend/player-public-downloads.sql
+          psql -v ON_ERROR_STOP=1 -f backend/player-public-downloads.sql
+          psql -v ON_ERROR_STOP=1 -f backend/test-player-public-downloads.sql
   deploy:
     needs: [build, policies]
     runs-on: ubuntu-latest

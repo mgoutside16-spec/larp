@@ -81,9 +81,9 @@ select pg_temp.assert_ok(not exists(select 1 from storage.objects where name lik
 select pg_temp.expect_error($q$insert into storage.objects(bucket_id,name,metadata) values('workshop-media','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/media/attack.png','{"size":1}')$q$,'42501','anonymous cannot write media');
 with deleted as (delete from storage.objects returning *) select pg_temp.assert_ok((select count(*)=0 from deleted),'anonymous cannot delete media');
 set local storage.operation='storage.object.list';
-select pg_temp.assert_ok((select count(*)=0 from storage.objects),'anonymous cannot list objects');
+select pg_temp.assert_ok((select count(*)=2 from storage.objects),'anonymous listing contains only public referenced files');
 set local storage.operation='';
-select pg_temp.assert_ok((select count(*)=0 from storage.objects),'anonymous cannot query storage metadata directly');
+select pg_temp.assert_ok((select count(*)=2 from storage.objects),'only public referenced metadata is visible');
 select pg_temp.expect_error('select * from public.player_auto_sources','42501','source bindings private');
 select pg_temp.expect_error('select * from public.workshop_projects','42501','project table remains private');
 select pg_temp.expect_error('select * from public.workshop_profiles','42501','profiles remain private');
