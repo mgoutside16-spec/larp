@@ -107,14 +107,14 @@ with sync_playwright() as p:
 
     # An application update changes code files; IndexedDB must survive it.
     bundle = next(path for path in (ROOT / 'web/dist/assets').glob('index-*.js')
-                  if 'LARP Studio <span>0.3</span>' in path.read_text())
+                  if 'LARP Studio <span>0.4</span>' in path.read_text())
     original = bundle.read_text()
     index = ROOT / 'web/dist/index.html'
     original_index = index.read_text()
     updated_bundle = bundle.with_name(bundle.stem + '-update.js')
     try:
         # Vite deploys a new content-hashed script URL, so test a new URL too.
-        updated_bundle.write_text(original.replace('LARP Studio <span>0.3</span>', 'LARP Studio <span>0.3-update</span>'))
+        updated_bundle.write_text(original.replace('LARP Studio <span>0.4</span>', 'LARP Studio <span>0.4-update</span>'))
         index.write_text(original_index.replace(bundle.name, updated_bundle.name))
         os.utime(index, (time.time() + 2, time.time() + 2))
         session = context.new_cdp_session(page)
@@ -123,7 +123,7 @@ with sync_playwright() as p:
         page.set_extra_http_headers({'Cache-Control': 'no-cache'})
         page.reload()
         page.wait_for_load_state('networkidle')
-        expect(page.locator('.version')).to_contain_text('0.3-update')
+        expect(page.locator('.version')).to_contain_text('0.4-update')
         expect(page.locator('.code-pill')).to_have_text(code)
         expect(page.locator('.record-title')).to_have_text('Дневник — новая редакция')
     finally:

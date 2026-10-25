@@ -86,3 +86,39 @@ in Chromium via system-trusted urllib transport: login/password, inaccessible
 projects before sign-in, logo, registration name/email/password, seven HTTP 200
 responses and zero uncaught JS errors. No real account/email created by agent.
 Working tree clean after documentation commit.
+
+
+## Android player v0.4
+
+Plan: docs/superpowers/plans/2026-10-25-player.md; design in sibling specs/.
+User resumed Android and explicitly requires online and offline file updates.
+Flutter chosen per original recommendation; full package online downloads,
+iOS signing and optional differential delivery remain explicitly unclaimed.
+Independent domains: toolchain, offlinecore, UI, publication; parent owns HTTP
+updater and integration/release. Source isolated on player-android branch.
+
+Core19, HTTP13, UI9 initially GREEN; real SQLite/files/ZIP/HTTP.
+Fresh independent review found one Important history/media cross-version collision:
+RED expected old bytes got new unopened bytes, fixed by record-scoped media lookup.
+UI game-switch race regraded Important for cross-game content context: actual
+SQLite result delayed in test adapter, RED old record navigation, fixed captured
+game guards. Browser DIV/SPAN emphasis regression RED→GREEN. Full44/44 GREEN
+and analyzer clean. Prior immutable version dirs retained; automatic cleanup of
+unreferenced/staging dirs is a deferred minor, documented in mobile/README.md.
+No further independent-review blockers. Core expected-game/version installation
+guards ensure online metadata mismatch cannot alter active version.
+
+Backend validated independently by parent: old158 + new34 PostgreSQL assertions
+and3 separate-connection concurrency scenarios pass. Web39, build and five
+browser scripts pass. Additive SQL published on player-android at1126ae5; owner
+asked asynchronously to run it. No servicekey, password or real player data used.
+
+Toolchains pinned with verified archive digests, JRE-only systemJava replaced
+by workspace fullJDK21. Telemetry/analyzer paths avoid read-only HOME. Android
+TCG emulator available in disposable default-root container (no HOMEoverride).
+Flutter commands must serialize: concurrent test/pubget/build briefly caused
+GeneratedPluginRegistrant to reference excluded integration_test dev plugin.
+Final release build137.9s,58.3MB, signature/sha verified; runtime smoke ongoing.
+Private stable signing key outside Git, under /workspace/larp-artifacts/private.
+GitHubintegration cannot access repositorysecrets (403); consumer signing stays
+in authorized cloud environment, CI checks use debug compilation only.
