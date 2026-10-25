@@ -2,7 +2,11 @@
 
 Установщик Android: https://github.com/mgoutside16-spec/larp/releases/latest/download/LARP-Player.apk
 
-Требуется Android 7 или новее. Один APK подходит ARM32, ARM64 и x86_64.
+Требуется Android 7 или новее. Универсальный APK подходит ARM32, ARM64 и x86_64.
+Для большинства современных телефонов есть уменьшенный [APK ARM64](https://github.com/mgoutside16-spec/larp/releases/latest/download/LARP-Player-arm64.apk).
+Для старых телефонов с 32-битным ARM — [APK ARM32](https://github.com/mgoutside16-spec/larp/releases/latest/download/LARP-Player-arm32.apk),
+для устройств с Intel — [APK x86_64](https://github.com/mgoutside16-spec/larp/releases/latest/download/LARP-Player-x86_64.apk).
+Если архитектура неизвестна, используйте универсальный установщик по первой ссылке.
 Никакие Python, Flutter или инструменты разработки игроку не нужны.
 
 ## Начало игры
@@ -44,6 +48,11 @@ SDK/кеши находятся в `/workspace`, телеметрия выклю
 Подписанная сборка: `LARP_SIGNING_PROPERTIES=/путь/к/приватным.properties
 ../scripts/build-player-apk.sh`. Ключ и пароли не входят в Git или публичный APK.
 Сохраните исходный ключ: другой ключ не позволит обновить установленное приложение.
+Скрипт создаёт универсальный APK и три уменьшенных APK по архитектурам в `../dist`,
+проверяет подпись и записывает SHA256 для каждого файла. Все варианты одной версии
+имеют одинаковый Android versionCode, поэтому при обновлении можно сменить вариант
+APK на совместимый с телефоном. Это задаёт `force-version-code-ignoring-abi=true`
+в `android/gradle.properties`; без него Flutter добавляет к versionCode номер архитектуры.
 
 Flutter-команды выполняйте последовательно. Одновременный pub get/test/build
 может перезаписать GeneratedPluginRegistrant и сломать release-компиляцию.

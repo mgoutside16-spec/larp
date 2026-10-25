@@ -32,7 +32,9 @@ with sync_playwright() as p:
     game_id = backend.projects[project_id]['document']['packageId']
     page.locator('[data-page=builds]').click()
     expect(page.get_by_role('button', name='Опубликовать обновление', exact=True)).to_be_visible()
-    expect(page.get_by_role('link', name='Скачать приложение игрока (Android)', exact=True)).to_have_attribute('href', 'https://github.com/mgoutside16-spec/larp/releases/latest/download/LARP-Player.apk')
+    expect(page.get_by_role('link', name='Скачать приложение · 22 МБ', exact=True)).to_have_attribute('href', 'https://github.com/mgoutside16-spec/larp/releases/latest/download/LARP-Player-arm64.apk')
+    expect(page.get_by_role('link', name='Совместимая версия для старых телефонов', exact=True)).to_have_attribute('href', 'https://github.com/mgoutside16-spec/larp/releases/latest/download/LARP-Player.apk')
+    expect(page.locator('.player-qr img')).to_be_visible()
     backend.player_updates_available = False
     page.get_by_role('button', name='Опубликовать обновление', exact=True).click()
     expect(page.locator('#toast')).to_contain_text('backend/player-updates.sql')

@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
 import {createClient} from '@supabase/supabase-js';
 import {CloudStorage} from '../src/cloud-storage.ts';
-import {Storage} from '../src/storage.ts';
+import {Storage,stageMedia} from '../src/storage.ts';
 import type {Game} from '../src/types';
 
 async function fixture(changeTarget=false,injectConflict=true){
@@ -13,8 +13,16 @@ async function fixture(changeTarget=false,injectConflict=true){
     {id:crypto.randomUUID(),code:'23456',title:'Запись Б',location_id:null,modified:'2026-10-25T00:00:00Z',blocks:[],revision:1},
   ]};
   let row={id,owner_id:user,revision:1,document:game,status:'active'},conflict=injectConflict;
+  const media=new Map<string,Blob>();let mediaDownloads=0;
   const api=async(input:RequestInfo|URL,init?:RequestInit)=>{
     const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url);
+    if(url.pathname.startsWith('/storage/v1/object/workshop-media/')){
+      if(init?.method==='POST'){
+        const blob=(init.body as FormData).get('') as Blob;media.set(url.pathname,blob);
+        return Response.json({Id:crypto.randomUUID(),Key:url.pathname});
+      }
+      mediaDownloads++;return new Response(media.get(url.pathname));
+    }
     if(url.pathname.endsWith('/rpc/save_workshop_project')){
       const body=JSON.parse(String(init?.body));
       if(conflict){conflict=false;row.revision++;const target=row.document.records[changeTarget?0:1];target.title='Правка коллеги';target.revision++;
@@ -28,7 +36,7 @@ async function fixture(changeTarget=false,injectConflict=true){
   };
   const client=createClient('https://test.supabase.co','sb_publishable_test',{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:api}});
   const store=await CloudStorage.open(client,user);
-  return {store,game,getRow:()=>row,client,user};
+  return {store,game,getRow:()=>row,client,user,mediaDownloads:()=>mediaDownloads};
 }
 
 test('parallel edits of different records merge after a server revision conflict',async()=>{
@@ -62,4 +70,17 @@ test('a concurrent cache refresh cannot turn a successful save into a lost edit'
     assert.equal(result.title,'Сохранённая правка');
     assert.equal(getRow().document.records[0].title,'Сохранённая правка');
   }finally{Storage.prototype.saveRecord=save;store.close();otherTab.close();}
+});
+
+
+test('saving uploaded media caches its actual bytes without downloading them again on reopen',async()=>{
+  const f=await fixture(false,false);
+  try{
+    const file=new File([new Uint8Array(1024*1024).fill(42)],'video.mp4',{type:'video/mp4'});
+    const asset=await stageMedia(file);
+    const saved=await f.store.saveRecord(f.game.id,{title:'Видео',location_id:null,blocks:[{kind:'video',value:asset.path}]},[asset]);
+    const reopened=await f.store.media(f.game.id,saved.blocks[0].value);
+    assert.deepEqual(new Uint8Array(await reopened.blob.arrayBuffer()),new Uint8Array(await file.arrayBuffer()));
+    assert.equal(f.mediaDownloads(),0,'file already uploaded in this editor should stay cached');
+  }finally{f.store.close();}
 });

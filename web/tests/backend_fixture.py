@@ -64,7 +64,12 @@ class BackendFixture:
                 prefix = '/storage/v1/object/' + bucket + '/'
                 key = path.removeprefix(prefix)
                 content_type = self.headers.get('content-type', 'application/octet-stream')
-                raw = self.rfile.read(int(self.headers.get('content-length', '0')))
+                expected_length = int(self.headers.get('content-length', '0'))
+                raw = self.rfile.read(expected_length)
+                if len(raw) != expected_length:
+                    # A cancelled browser upload closes the socket mid-body.
+                    # It must not create an object or write an error to that socket.
+                    return
                 if content_type.startswith('multipart/form-data'):
                     message = BytesParser(policy=policy.default).parsebytes(b'Content-Type: ' + content_type.encode() + b'\r\nMIME-Version: 1.0\r\n\r\n' + raw)
                     parts = [part for part in message.iter_parts() if part.get_filename() is not None]

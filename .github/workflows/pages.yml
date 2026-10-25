@@ -44,6 +44,7 @@ jobs:
           python tests/review_regressions.py
           python tests/player_publication_check.py
           python tests/player_auto_sync_check.py
+          python tests/video_upload_check.py
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:

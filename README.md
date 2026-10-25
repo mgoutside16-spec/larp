@@ -45,7 +45,12 @@ IndexedDB — кеш, разделённый по аккаунтам; при в�
 зависят от тарифа Supabase (на бесплатном тарифе обычно 50 МиБ на файл).
 ## Приложение игрока Android
 
-**[Скачать APK](https://github.com/mgoutside16-spec/larp/releases/latest/download/LARP-Player.apk)**
+**[Скачать приложение · компактная и совместимая версии](https://mgoutside16-spec.github.io/larp/player/)**
+
+Компактная версия для современных телефонов — около22МБ. QR для игроков:
+[PNG](https://mgoutside16-spec.github.io/larp/player/qr-download.png),
+[SVG](https://mgoutside16-spec.github.io/larp/player/qr-download.svg).
+Код ведёт на постоянную страницу без входа; менять его после обновлений не нужно.
 
 При подключении к интернету приложение само загружает активные проекты и
 изменения мастера. Игрок выбирает проект, пишет имя персонажа и вводит код.

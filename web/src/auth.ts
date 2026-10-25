@@ -1,3 +1,4 @@
+import {Transfers} from './transfers';
 import {createClient,type Session} from '@supabase/supabase-js';
 import {AccountService,CloudStorage,type Identity} from './cloud-storage';
 import {validateBackendConfig,authMessage} from './auth-config';
@@ -14,7 +15,8 @@ export async function startAccounts(onReady:(runtime:AccountRuntime)=>Promise<vo
   const response=await fetch(new URL('config.json',base),{cache:'no-store'});
   if(!response.ok)throw new Error('Не удалось загрузить подключение к мастерской.');
   const config=validateBackendConfig(await response.json());
-  const client=createClient(config.supabaseUrl,config.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  const transfers=new Transfers();
+  const client=createClient(config.supabaseUrl,config.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},global:{fetch:transfers.fetch}});
   const service=new AccountService(client);
   let current:AccountRuntime|undefined,pendingUser='',generation=0,mode:'login'|'signup'|'recover'|'reset'='login';
 
@@ -54,7 +56,7 @@ export async function startAccounts(onReady:(runtime:AccountRuntime)=>Promise<vo
       const registeredName=session?.user.user_metadata?.display_name;
       if(!identity.display_name&&typeof registeredName==='string'&&registeredName.trim())identity=await service.profile(registeredName.trim().slice(0,100));
       if(ticket!==generation)return;
-      const store=await CloudStorage.open(client,userId);if(ticket!==generation){store.close();return;}
+      const store=await CloudStorage.open(client,userId,transfers);if(ticket!==generation){store.close();return;}
       const runtime:AccountRuntime={identity,service,store,logout:async()=>{generation++;pendingUser='';current=undefined;onLogout();const {error}=await client.auth.signOut({scope:'local'});await store.clearPrivateCache();if(error)throw error;mode='login';form();}};
       current=runtime;pendingUser='';await onReady(runtime);
     }catch(error){if(ticket!==generation)return;pendingUser='';

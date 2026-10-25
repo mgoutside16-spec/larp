@@ -1,3 +1,4 @@
+import type {SaveOptions} from './transfers';
 import { openDB, type IDBPDatabase } from 'idb';
 import { type Asset, type Draft, type Game, type Material, KINDS, now, title, requireValue, mediaPath, sha256 } from './types';
 import { validateTemplate, type PrintTemplate } from './print-layout';
@@ -118,12 +119,20 @@ export class Storage {
       await tx.objectStore('games').put(game);await done;return game;
     }catch(error){try{tx.abort();}catch{}await done.catch(()=>{});throw error;}
   }
+  async cacheMedia(id:string,assets:Asset[]) {
+    const tx=this.db.transaction('media','readwrite'),done=tx.done;done.catch(()=>{});
+    try{
+      for(const asset of assets)await tx.store.put({...asset,projectId:id});
+      await done;
+    }catch(error){try{tx.abort();}catch{}await done.catch(()=>{});throw error;}
+  }
   async cacheSnapshot(game:Game,assets:Asset[]=[]) {
     const tx=this.db.transaction(['games','media'],'readwrite');await tx.objectStore('games').put(game);
     for(const asset of assets)await tx.objectStore('media').put({...asset,projectId:game.id});await tx.done;
   }
   async allMedia(id:string):Promise<Asset[]> {return this.db.getAllFromIndex('media','projectId',id);}
-  async saveRecord(id: string, draft: Draft, assets: Asset[]=[]): Promise<Material> {
+  async saveRecord(id: string, draft: Draft, assets: Asset[]=[], options:SaveOptions={}): Promise<Material> {
+    options.signal?.throwIfAborted();
     const recordTitle=title(draft.title);
     const tx=this.db.transaction(['games','media'],'readwrite'),done=tx.done;done.catch(()=>{});
     try {

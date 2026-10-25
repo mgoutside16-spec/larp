@@ -1,3 +1,4 @@
+import {Transfers,type SaveOptions} from './transfers';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Storage, type WorkshopStorage } from './storage';
 import { type Asset, type Draft, type Game, type Material, mediaPath, now, requireValue, sha256 } from './types';
@@ -36,8 +37,8 @@ export function projectMedia(game:Game):string[] {
 export class CloudStorage implements WorkshopStorage {
   private active=true;
   private revisions=new Map<string,Snapshot>();
-  private constructor(readonly client:SupabaseClient,readonly userId:string,private local:Storage){}
-  static async open(client:SupabaseClient,userId:string){return new CloudStorage(client,userId,await Storage.open(`larp-studio-account-${userId}`));}
+  private constructor(readonly client:SupabaseClient,readonly userId:string,private local:Storage,private transfers?:Transfers){}
+  static async open(client:SupabaseClient,userId:string,transfers?:Transfers){return new CloudStorage(client,userId,await Storage.open(`larp-studio-account-${userId}`),transfers);}
   private check(){requireValue(this.active,'Сеанс завершён. Войдите в аккаунт заново.');}
   close(){this.active=false;this.revisions.clear();this.local.close();}
   async clearPrivateCache(){this.close();await deleteDB(`larp-studio-account-${this.userId}`);}
@@ -136,19 +137,34 @@ export class CloudStorage implements WorkshopStorage {
     }
     this.check();
   }
-  async saveRecord(id:string,draft:Draft,assets:Asset[]=[]):Promise<Material>{
-    await this.fetch(id);
-    for(const asset of assets)await this.upload(id,asset);
+  async saveRecord(id:string,draft:Draft,assets:Asset[]=[],options:SaveOptions={}):Promise<Material>{
+    const total=assets.reduce((sum,a)=>sum+a.blob.size,0);let loaded=0;
+    const check=()=>{if(options.signal?.aborted)throw new Error('Загрузка отменена. Запись не сохранена.');};
+    check();options.onProgress?.({phase:'checking',loaded,total});
+    await this.fetch(id);check();
+    for(const asset of assets){
+      options.onProgress?.({phase:'upload',loaded,total,name:asset.name});
+      const done=this.transfers?.watch(`${id}/${asset.path}`,{signal:options.signal,
+        progress:ratio=>options.onProgress?.({phase:'upload',loaded:loaded+Math.round(asset.blob.size*ratio),total,name:asset.name})});
+      try{check();await this.upload(id,asset);check();loaded+=asset.blob.size;}
+      finally{done?.();}
+    }
+    check();options.onProgress?.({phase:'saving',loaded,total});
     // Cache existing media before opening an IndexedDB transaction.
     const proposalAssets=[...assets];
     for(const block of draft.blocks)if(block.kind!=='text'&&!proposalAssets.some(a=>a.path===block.value))proposalAssets.push(await this.media(id,block.value));
-    return (await this.mutate(id,local=>local.saveRecord(id,draft,proposalAssets),proposalAssets)).result;
+    const saved=(await this.mutate(id,local=>local.saveRecord(id,draft,proposalAssets),proposalAssets)).result;
+    // Keep already-uploaded bytes locally without rewriting a newer document.
+    // Caching is optional: a quota error must not turn a committed save into a retry.
+    try{await this.local.cacheMedia(id,proposalAssets);}catch{}
+    return saved;
   }
   async deleteRecord(id:string,recordId:string){return (await this.mutate(id,local=>local.deleteRecord(id,recordId))).game;}
   async savePrintTemplate(id:string,scope:string,template:PrintTemplate,asset?:Asset){
     await this.fetch(id);const source=asset||await this.media(id,template.imagePath);if(asset)await this.upload(id,asset);
     return (await this.mutate(id,local=>local.savePrintTemplate(id,scope,template,source),[source])).game;
   }
+  async cacheMedia(id:string,assets:Asset[]){this.check();await this.fetch(id);await this.local.cacheMedia(id,assets);}
   async cacheSnapshot(game:Game,assets:Asset[]=[]){this.check();await this.fetch(game.id);await this.local.cacheSnapshot(game,assets);}
   async allMedia(id:string){const game=await this.game(id);return Promise.all(projectMedia(game).map(path=>this.media(id,path)));}
   async addImported(game:Game,assets:Asset[]=[]){
