@@ -8,6 +8,7 @@ import '../core/models.dart';
 import '../core/player_store.dart';
 import '../core/update_client.dart';
 import 'record_reader.dart';
+import 'player_image.dart';
 
 const _ink = Color(0xff18191c);
 const _paper = Color(0xfff0ece3);
@@ -526,8 +527,8 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
         children: [
           Align(
             alignment: Alignment.centerLeft,
-            child: Image.asset(
-              'assets/bez-pravil.png',
+            child: Image(
+              image: const PlayerImageProvider.asset('assets/bez-pravil.png'),
               width: 92,
               height: 92,
               fit: BoxFit.contain,

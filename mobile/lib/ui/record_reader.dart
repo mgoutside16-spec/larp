@@ -10,6 +10,7 @@ import 'package:video_player/video_player.dart';
 
 import '../core/models.dart';
 import '../core/player_store.dart';
+import 'player_image.dart';
 
 /// Preserve only the package's passive text vocabulary. No attributes, links,
 /// external resources or embedded players survive this boundary.
@@ -230,8 +231,8 @@ class _LocalImage extends StatelessWidget {
               child: InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 8,
-                child: Image.file(
-                  file,
+                child: Image(
+                  image: PlayerImageProvider.file(file),
                   errorBuilder: (_, _, _) =>
                       const _MediaError('Не удалось показать изображение.'),
                 ),
@@ -242,8 +243,8 @@ class _LocalImage extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.file(
-          file,
+        child: Image(
+          image: PlayerImageProvider.file(file),
           fit: BoxFit.contain,
           errorBuilder: (_, _, _) =>
               const _MediaError('Не удалось показать изображение.'),

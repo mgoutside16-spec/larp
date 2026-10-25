@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -9,12 +11,28 @@ import 'package:path_provider/path_provider.dart';
 import 'package:larp_player/core/models.dart';
 import 'package:larp_player/core/player_store.dart';
 import 'package:larp_player/ui/player_app.dart';
+import 'package:larp_player/ui/player_image.dart';
 
 import '../test/core/package_helper.dart' as fixture;
 import 'media_fixture.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('bundled workshop emblem is available and decodes on Android', (
+    tester,
+  ) async {
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    expect(manifest.listAssets(), contains('assets/bez-pravil.png'));
+    final bytes = await rootBundle.load('assets/bez-pravil.png');
+    final codec = await decodePlayerImage(
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+    );
+    final frame = await codec.getNextFrame();
+    expect(frame.image.width, 1254);
+    expect(frame.image.height, 1254);
+    frame.image.dispose();
+    codec.dispose();
+  });
   testWidgets(
     'native offline import, ordered media, persistent lock and update',
     (tester) async {
@@ -44,15 +62,23 @@ void main() {
         for (final digit in ['1', '2', '3', '4', '5']) {
           await tester.tap(find.byKey(ValueKey('digit-$digit')));
         }
+        await tester.pump();
         await tester.ensureVisible(find.text('Открыть материал'));
         await tester.tap(find.text('Открыть материал'));
         await waitFor(
           tester,
           find.textContaining('Офлайн-проверка', findRichText: true),
         );
-        await waitFor(tester, find.byTooltip('Слушать'));
-        await tester.ensureVisible(find.byTooltip('Слушать'));
-        await tester.tap(find.byTooltip('Слушать'));
+        final audioReady = find.byWidgetPredicate(
+          (widget) =>
+              widget is IconButton &&
+              widget.tooltip == 'Слушать' &&
+              widget.onPressed != null,
+        );
+        await waitFor(tester, audioReady);
+        await tester.ensureVisible(audioReady);
+        await tester.pump();
+        await tester.tap(audioReady);
         await waitFor(tester, find.byTooltip('Пауза'));
         await tester.pump(const Duration(milliseconds: 600));
         await tester.tap(find.byTooltip('Пауза'));
@@ -63,6 +89,7 @@ void main() {
         );
         await waitFor(tester, find.byTooltip('Смотреть'));
         await tester.ensureVisible(find.byTooltip('Смотреть'));
+        await tester.pump();
         await tester.tap(find.byTooltip('Смотреть'));
         await waitFor(tester, find.byTooltip('Пауза'));
         await tester.pump(const Duration(milliseconds: 600));
@@ -121,7 +148,7 @@ Future<void> waitFor(WidgetTester tester, Finder target) async {
 }
 
 Uint8List _wave() {
-  const sampleRate = 22050, count = sampleRate * 4;
+  const sampleRate = 22050, count = sampleRate * 60;
   final data = ByteData(44 + count * 2);
   void text(int at, String value) {
     for (var i = 0; i < value.length; i++) {

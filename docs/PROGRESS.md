@@ -122,3 +122,45 @@ Final release build137.9s,58.3MB, signature/sha verified; runtime smoke ongoing.
 Private stable signing key outside Git, under /workspace/larp-artifacts/private.
 GitHubintegration cannot access repositorysecrets (403); consumer signing stays
 in authorized cloud environment, CI checks use debug compilation only.
+
+Native Android verification exposed a real compatibility boundary before delivery:
+SAF import/code/text/WAV/H264 all worked in signed release offline, but PNG failed
+'Could not decompress image'. Skia and CPU rendering flags did not fix it, so
+production renderer remained unchanged. Exact source/APK/Android-loaded PNG bytes
+and CRC matched, memory available, JPEG/rawRGBA/tinyPNG worked. Narrow native probe
+then proved dart:io zlib and archive native bytes/lazy throw 'Filter error, bad data'
+for valid IDAT, while ZLibDecoderWeb returns exact expected6,291,318bytes/SHA.
+The first fallback using package:image alone failed too because its PNG decoder
+also selected native zlib. Host PNG/inflate paths all passed; Android boundary is
+native wrapped zlib, not assets or framebuffer. No published APK existed yet.
+
+Compatibility implementation: PlayerImageProvider primes/preserves native frame0,
+falls back in compute isolate to a licensed local image4.12.0 PNG decoder whose
+only algorithm change is pure Dart streaming inflation, then raw premultiplied
+RGBA. Both supplied emblem and record files use it. image4.12.0/archive4.5.2 pinned;
+upstream license/source hash retained. Size guarded64MiB/40MP before pixels.
+Full50/50 tests GREEN, analyzer clean; tests include exact full emblem pixel SHA,
+translucent RGBA, animation first-frame ordering and bounds. Native test fixes
+also wait for enabled audio button (tooltip existed while disabled), pump after
+code input, and use60second clips to accommodate slow TCG. Final native2-test run
+is now pending; do not claim final delivery or publish baseline a11f966... APK.
+After native GREEN toolchain agent will rebuild signed release, replace dist APK,
+verify signature/hash and repeat actual signed SAF/photo/lock/update smoke.
+
+User executed player-updates.sql with Success; actual real anonymous RPC returned
+HTTP200null for unpublished UUID. Source branch player-android pushed25a8f90;
+Android CI40206161982 success (initial44 tests and native debug compilation).
+Current PNG compatibility changes uncommitted. Final main merge/Pages/GitHubRelease
+still pending; do not finish at source-only. Cloud environment draft updated with
+mobile setup/start instructions; user must save/publish environment to retain it.
+
+
+PNG compatibility follow-up: native zlib probe confirmed Filter error/bad data
+while pure Dart inflate matched exact raw SHA370e65e... on Android. A local MIT
+image4.12.0 PNG decoder now selects pure streaming ZLibDecoderWeb. The first raw
+RGBA workaround exposed a separate descriptor lifetime bug; tombstone symbolicated
+SkData::size / SkMallocPixelRef::MakeWithData null data. New host regression also
+reproduced Codec failed to produce image before the fix. Raw buffer/descriptor now
+remain alive through first-frame decoding and return a primed codec. Full51 tests
+and analyzer GREEN. Native supplied-emblem case now GREEN, no SIGSEGV; second
+native media/lock/update case ongoing. No consumer APK published before these fixes.
