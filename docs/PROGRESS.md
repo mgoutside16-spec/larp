@@ -46,3 +46,10 @@ the workflow's GITHUB_TOKEN. User asked asynchronously to enable Settings > Page
 > Source: GitHub Actions. No site availability claim until actual HTTPS check.
 Manual desktop workflow's invalid runner context in job env corrected to a local
 settings directory; no desktop runtime or functionality changed.
+
+Deployment completed after user enabled Source: GitHub Actions. Run 40194144453:
+build and deploy success. Public site https://mgoutside16-spec.github.io/larp/
+returns HTTP 200. Real published assets passed create/save/reload and downloads
+for XLSX/PDF/.rpgpack in a fresh browser context; no JS errors/failed requests.
+TLS verification preserved via system-trusted urllib transport for cloud browser
+requests (its private trust store lacks the environment proxy CA).
