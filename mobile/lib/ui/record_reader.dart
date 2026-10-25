@@ -407,6 +407,7 @@ class _LocalVideo extends StatefulWidget {
 class _LocalVideoState extends State<_LocalVideo> with WidgetsBindingObserver {
   late final VideoPlayerController _player;
   String? _error;
+  bool _active = true;
   @override
   void initState() {
     super.initState();
@@ -430,7 +431,7 @@ class _LocalVideoState extends State<_LocalVideo> with WidgetsBindingObserver {
   }
 
   void _changed() {
-    if (mounted) {
+    if (mounted && _active) {
       setState(() {
         if (_player.value.hasError) _error = 'Не удалось воспроизвести видео.';
       });
@@ -444,8 +445,16 @@ class _LocalVideoState extends State<_LocalVideo> with WidgetsBindingObserver {
 
   @override
   void deactivate() {
+    // pause() synchronously notifies listeners while the route is rebuilding.
+    _active = false;
     unawaited(_player.pause());
     super.deactivate();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    _active = true;
   }
 
   @override
