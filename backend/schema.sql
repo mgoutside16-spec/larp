@@ -42,6 +42,7 @@ create table if not exists public.workshop_invites (
   added_by uuid references auth.users(id) on delete set null,
   primary key(project_id,email)
 );
+alter table public.workshop_invites add column if not exists created_at timestamptz not null default now();
 -- Kept outside the document so deleted record identifiers cannot acquire a new code later.
 create table if not exists public.workshop_record_history (
   project_id uuid not null references public.workshop_projects(id) on delete cascade,
@@ -337,6 +338,28 @@ begin
  then raise exception 'Владельца нельзя удалить из проекта.' using errcode='23514';end if;
  delete from public.workshop_members where project_id=p_project_id and user_id=p_user_id;
 end $$;
+create or replace function public.list_workshop_invites(p_project_id uuid)
+returns table(email text,created_at timestamptz)
+language plpgsql security definer set search_path = '' as $$
+begin
+ if not public.workshop_can_manage(p_project_id) then
+  raise exception 'Нужны права владельца проекта.' using errcode='42501';end if;
+ return query select i.email,i.created_at from public.workshop_invites i
+ where i.project_id=p_project_id order by i.created_at,i.email;
+end $$;
+
+create or replace function public.remove_workshop_invite(p_project_id uuid,p_email text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare normalized text:=lower(trim(p_email));
+begin
+ perform 1 from public.workshop_projects where id=p_project_id for update;
+ if not public.workshop_can_manage(p_project_id) then
+  raise exception 'Нужны права владельца проекта.' using errcode='42501';end if;
+ if normalized is null or length(normalized)>320 or normalized !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
+  raise exception 'Укажите корректный email.' using errcode='23514';end if;
+ delete from public.workshop_invites where project_id=p_project_id and email=normalized;
+end $$;
+
 create or replace function public.claim_workshop_invites()
 returns integer language plpgsql security definer set search_path = '' as $$
 declare verified_email text; total integer;
@@ -364,6 +387,7 @@ grant execute on function public.workshop_is_admin(),public.workshop_can_access(
  public.workshop_can_view_profile(uuid),public.get_workshop_identity(),public.set_workshop_display_name(text),
  public.list_workshop_users(),public.set_workshop_admin(uuid,boolean),public.list_workshop_members(uuid),
  public.add_workshop_member(uuid,text),public.remove_workshop_member(uuid,uuid),public.claim_workshop_invites(),
+ public.list_workshop_invites(uuid),public.remove_workshop_invite(uuid,text),
  public.save_workshop_project(jsonb,bigint,boolean),public.delete_workshop_project(uuid,bigint) to authenticated;
 
 insert into storage.buckets(id,name,public,file_size_limit)
