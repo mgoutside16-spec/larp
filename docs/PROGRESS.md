@@ -164,3 +164,11 @@ reproduced Codec failed to produce image before the fix. Raw buffer/descriptor n
 remain alive through first-frame decoding and return a primed codec. Full51 tests
 and analyzer GREEN. Native supplied-emblem case now GREEN, no SIGSEGV; second
 native media/lock/update case ongoing. No consumer APK published before these fixes.
+
+
+Native final2/2GREEN exit0,2:06. Signed release rebuilt alone42.5s,61.5MB;
+replacement APK sha7e2198dc3a391cc16c81e072039d98a4bf09aa08698a5be1dc57dbac77423209
+verified and stable RSA3072 certificateunchanged. Actual replacement installed,
+offline startup and correct supplied emblem visualconfirmed. Dist consumer APK
+nowcorrectlyreplacedbaseline. Synthetic SAF/photo/state smoke ongoing. Source
+compatibilitycommit62c3072 pushed; no more Dart/Flutter source changes pending.
