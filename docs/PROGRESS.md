@@ -78,3 +78,11 @@ Real backend denies anonymous table/identity RPC access (401/42501). No actual
 user password or auth email used in tests; owner completes registration himself.
 Updated reusable cloud setup/start instructions saved to configuration draft.
 Publication of final source is verified separately below.
+
+
+Version 0.3 deployed from main commit 0c45794 by GitHub run 40202136444.
+policies/build/deploy all success. Actual published HTTPS responses verified
+in Chromium via system-trusted urllib transport: login/password, inaccessible
+projects before sign-in, logo, registration name/email/password, seven HTTP 200
+responses and zero uncaught JS errors. No real account/email created by agent.
+Working tree clean after documentation commit.
