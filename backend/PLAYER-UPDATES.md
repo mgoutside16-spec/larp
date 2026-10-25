@@ -1,0 +1,109 @@
+# Публикация обновлений игрока
+
+В существующем Supabase-проекте после схемы аккаунтов выполнить
+[`player-updates.sql`](player-updates.sql). Миграция добавочная и повторяемая:
+не меняет Auth, пароли, профили, мастерские документы и прежние медиа.
+Рабочий Supabase в ходе разработки не изменялся. Нужны только существующие
+публичные URL и API key; секретный ключ в приложение не передаётся.
+
+`player-releases` — приватный Storage bucket. Объект:
+`PROJECT_UUID/VERSION/SHA256.rpgpack`, без префикса bucket. Архив загружается
+с `upsert:false`, MIME `application/octet-stream`. Размер от 1 до 1 073 741 824
+байт; тариф или глобальный лимит Storage может допускать меньше.
+
+## RPC
+
+`POST /rest/v1/rpc/get_player_release`, JSON:
+
+```json
+{"p_game_id":"UUID ИГРЫ"}
+```
+
+Доступен ролям `anon` и `authenticated`. `p_game_id` соответствует
+`manifest.game.id` / мастерскому `document.packageId`, а не обязательно
+`workshop_projects.id`. Возвращает `null`, если публикации нет, проект удалён
+или неактивен, иначе один объект:
+
+```json
+{
+  "game_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "name": "Название игры",
+  "version": 1,
+  "sha256": "64 строчные шестнадцатеричные цифры",
+  "size": 123,
+  "download_path": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/1/SHA256.rpgpack",
+  "created_at": "2026-10-25T00:00:00+00:00"
+}
+```
+
+Скачать текущую опубликованную версию:
+`GET /storage/v1/object/player-releases/{download_path}` с публичным API key.
+Маршрут `/storage/v1/object/authenticated/player-releases/{download_path}` —
+эквивалентный alias Supabase Storage. Оба используют Storage operation
+`storage.object.get_authenticated`. URL `/public/` и signed URL не используются.
+RLS разрешает только эту операцию над текущим опубликованным объектом:
+анонимные listing, SQL/REST-перечисление релизов, проектов и профилей закрыты.
+Клиент проверяет размер и SHA256 перед установкой.
+
+`POST /rest/v1/rpc/publish_player_release`, только вошедший владелец/администратор:
+
+```json
+{
+  "p_project_id": "UUID ПРОЕКТА",
+  "p_expected_revision": 7,
+  "p_version": 1,
+  "p_path": "PROJECT_UUID/1/SHA256.rpgpack",
+  "p_sha256": "64 строчные шестнадцатеричные цифры",
+  "p_size": 123
+}
+```
+
+Возвращает тот же объект релиза. Проверяет права, active-статус, точную
+CAS-ревизию проекта, совпадение версии документа, путь, наличие объекта и
+его Storage metadata size. SHA256 вычисляет мастерская по точным загруженным
+байтам; сервер не читает и не хеширует содержимое Storage. Ревизия проекта
+при публикации не меняется; создание `.rpgpack` заранее сохраняет новую версию
+и историю сборок через обычный CAS.
+
+Ошибки: `42501` — нет прав; `40001` — устаревшая ревизия; `23514` — неверный
+пакет, объект отсутствует, повторная/пониженная версия или чужая игровая
+идентичность. Отсутствующая миграция даёт понятное сообщение в мастерской
+с именем SQL-файла до создания/загрузки сборки.
+
+История публикаций приватная и сохраняется после удаления мастерского
+проекта: ранее опубликованные UUID/версии нельзя присвоить другому проекту.
+Опубликованные файлы, включая прежние версии, неизменяемы; автоматическая
+очистка старых опубликованных архивов не предусмотрена. Владелец/админ может
+удалять неопубликованные staged-файлы. Ошибка публикации сохраняет прежний
+доступный релиз; неудачная загрузка может оставить staged-файл.
+
+## Проверки
+
+Только одноразовый PostgreSQL 17, не рабочая база:
+
+```sh
+psql -v ON_ERROR_STOP=1 -f backend/test-bootstrap.sql
+psql -v ON_ERROR_STOP=1 -f backend/schema.sql
+psql -v ON_ERROR_STOP=1 -f backend/account-update.sql
+psql -v ON_ERROR_STOP=1 -f backend/test-policies.sql
+psql -v ON_ERROR_STOP=1 -f backend/player-updates.sql
+psql -v ON_ERROR_STOP=1 -f backend/player-updates.sql
+psql -v ON_ERROR_STOP=1 -f backend/test-player-updates.sql
+python backend/test-player-concurrency.py
+```
+
+Локально concurrency-скрипт также поддерживает
+`--docker larp-account-tests`. Реальные отдельные соединения проверяют
+гонку сохранения/публикации, одновременную публикацию одной версии и удаление
+staged-объекта во время публикации. Проверки RLS включают владельца, админа,
+участника, постороннего и анонимного игрока, downgrade и импорт той же UUID.
+
+`web/tests/player-publication.test.ts` использует настоящий SDK, IndexedDB и
+создание/чтение ZIP; внешний HTTP заменён транспортной фикстурой.
+`web/tests/player_publication_check.py` проверяет реальные Chromium, SDK,
+загрузку точных байтов ZIP и clipboard. Это не заменяет RLS-проверки выше.
+
+Наблюдались RED: отсутствующий lookup RPC; отсутствующий модуль публикации;
+отсутствующая кнопка в Chromium. После реализации эти проверки GREEN.
+Отдельно обнаружена и через RED→GREEN исправлена публикация пакетов с UUID
+в верхнем регистре: SQL сравнивает UUID как UUID, ссылка нормализована.

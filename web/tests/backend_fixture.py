@@ -37,6 +37,9 @@ class BackendFixture:
         self.memberships = {}
         self.invites = {}
         self.media = {}
+        self.player_archives = {}
+        self.player_releases = {}
+        self.player_updates_available = True
         self.requests = []
         self.unhandled = []
         self.auth_mail_requests = []
@@ -52,10 +55,11 @@ class BackendFixture:
 
             def do_POST(self):
                 path = unquote(urlparse(self.path).path)
-                prefix = '/storage/v1/object/workshop-media/'
-                if not path.startswith(prefix):
+                bucket = next((b for b in ('workshop-media', 'player-releases') if path.startswith('/storage/v1/object/' + b + '/')), None)
+                if not bucket:
                     self.send_error(404)
                     return
+                prefix = '/storage/v1/object/' + bucket + '/'
                 key = path.removeprefix(prefix)
                 content_type = self.headers.get('content-type', 'application/octet-stream')
                 raw = self.rfile.read(int(self.headers.get('content-length', '0')))
@@ -70,8 +74,9 @@ class BackendFixture:
                 if not raw or hashlib.sha256(raw).hexdigest() != expected:
                     self.send_error(400, 'Upload bytes differ from content-addressed filename')
                     return
-                fixture.media[key] = (raw, content_type)
-                result = json.dumps({'Key': 'workshop-media/' + key, 'Id': key}).encode()
+                objects = fixture.media if bucket == 'workshop-media' else fixture.player_archives
+                objects[key] = (raw, content_type)
+                result = json.dumps({'Key': bucket + '/' + key, 'Id': key}).encode()
                 self.send_response(200)
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.send_header('Content-Type', 'application/json')
@@ -182,6 +187,26 @@ class BackendFixture:
             self.auth_mail_requests.append(path)
             respond({})
             return
+        if path == '/rest/v1/rpc/get_player_release':
+            if not self.player_updates_available:
+                denied('Could not find the function get_player_release', 'PGRST202', 404)
+            else:
+                respond(self.player_releases.get(body.get('p_game_id')))
+            return
+        if path.startswith('/storage/v1/object/player-releases/'):
+            key = path.removeprefix('/storage/v1/object/player-releases/')
+            pid = key.split('/')[0]
+            if request.method == 'POST' and self._access(user, pid, True):
+                if key in self.player_archives:
+                    respond({'message': 'The resource already exists', 'statusCode': '409'}, 409)
+                else:
+                    route.continue_()
+            elif request.method == 'GET' and any(r['download_path'] == key for r in self.player_releases.values()):
+                raw, content_type = self.player_archives[key]
+                respond(body=raw, content_type=content_type)
+            else:
+                denied()
+            return
         if not user:
             denied('Необходим вход в аккаунт.')
             return
@@ -261,6 +286,22 @@ class BackendFixture:
                 else:
                     del self.projects[pid]
                     respond(None)
+            elif rpc == 'publish_player_release':
+                if not self._access(user, pid, True):
+                    denied()
+                elif self.projects[pid]['revision'] != body['p_expected_revision']:
+                    denied('Проект изменился.', '40001', 409)
+                else:
+                    document = self.projects[pid]['document']
+                    key = body['p_path']
+                    archive = self.player_archives.get(key)
+                    if not archive or len(archive[0]) != body['p_size'] or hashlib.sha256(archive[0]).hexdigest() != body['p_sha256'] or document['version'] != body['p_version']:
+                        denied('Некорректный игровой пакет.', '23514', 400)
+                    else:
+                        release = {'game_id': document['packageId'], 'name': document['name'], 'version': body['p_version'],
+                                   'sha256': body['p_sha256'], 'size': body['p_size'], 'download_path': key, 'created_at': '2026-10-25T00:00:00Z'}
+                        self.player_releases[document['packageId']] = release
+                        respond(release)
             elif rpc == 'list_workshop_members':
                 if not self._access(user, pid):
                     denied()

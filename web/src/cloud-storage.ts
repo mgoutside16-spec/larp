@@ -41,6 +41,11 @@ export class CloudStorage implements WorkshopStorage {
   close(){this.active=false;this.revisions.clear();this.local.close();}
   async clearPrivateCache(){this.close();await deleteDB(`larp-studio-account-${this.userId}`);}
   owner(id:string){return this.revisions.get(id)?.owner_id;}
+  publicationSnapshot(id:string){
+    this.check();const row=this.revisions.get(id);
+    requireValue(row?.status==='active','Проект ещё не готов к публикации. Обновите страницу.');
+    return {revision:row.revision,document:structuredClone(row.document)};
+  }
   async preference(key:string,value?:string){this.check();return this.local.preference(key,value);}
   async list():Promise<Game[]>{
     this.check();const {data,error}=await this.client.from('workshop_projects').select('id,owner_id,revision,document,status').eq('status','active').order('updated_at',{ascending:false});

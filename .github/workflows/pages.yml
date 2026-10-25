@@ -42,6 +42,7 @@ jobs:
           python tests/regression_check.py
           python tests/account_check.py
           python tests/review_regressions.py
+          python tests/player_publication_check.py
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
@@ -82,6 +83,12 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f backend/schema.sql
           psql -v ON_ERROR_STOP=1 -f backend/account-update.sql
           psql -v ON_ERROR_STOP=1 -f backend/test-policies.sql
+      - name: Verify player releases and anonymous download policies
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/player-updates.sql
+          psql -v ON_ERROR_STOP=1 -f backend/player-updates.sql
+          psql -v ON_ERROR_STOP=1 -f backend/test-player-updates.sql
+          python backend/test-player-concurrency.py
   deploy:
     needs: [build, policies]
     runs-on: ubuntu-latest
