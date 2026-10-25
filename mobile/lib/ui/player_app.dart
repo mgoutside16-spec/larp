@@ -89,34 +89,44 @@ class _PlayerHome extends StatefulWidget {
 class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
   List<InstalledGame>? _games;
   InstalledGame? _game;
-  List<PlayerRecord> _history = [];
-  final Map<String, PlayerRelease> _releases = {};
+  PlayerProfile? _profile;
   String _code = '';
   String? _message;
   String? _libraryError;
   bool _busy = false;
+  bool _manualTransfer = false;
   bool _checking = false;
+  bool _foreground = true;
+  String? _syncStatus;
+  bool _syncFailed = false;
+  double? _syncProgress;
+  Future<void>? _syncFlight;
   double? _progress;
-  int _tab = 0;
   LookupResult? _lock;
   Timer? _timer;
+  Timer? _syncTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(_loadGames().then((_) => _checkUpdates()));
+    _syncTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (_foreground) unawaited(_checkUpdates());
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _syncTimer?.cancel();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
     if (state == AppLifecycleState.resumed) {
       if (_game != null) unawaited(_refreshGame());
       unawaited(_checkUpdates());
@@ -146,11 +156,11 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
     if (game == null) return;
     try {
       final lock = await widget.store.lockState(game.id);
-      final history = await widget.store.history(game.id);
+      final profile = await widget.store.playerProfile(game.id);
       if (!mounted || _game?.id != game.id) return;
       setState(() {
         _lock = lock;
-        _history = history;
+        _profile = profile;
       });
       _timer?.cancel();
       if (lock.lockedUntil != null) {
@@ -170,55 +180,130 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
   }
 
   Future<void> _openGame(InstalledGame game) async {
+    final profile = await widget.store.playerProfile(game.id);
+    if (!mounted) return;
+    final name = await _askCharacter(game, profile?.characterName ?? '');
+    if (name == null || !mounted) return;
+    try {
+      final saved = await widget.store.savePlayerProfile(game.id, name);
+      if (!mounted) return;
+      _profile = saved;
+    } catch (e) {
+      _notice(playerError(e));
+      return;
+    }
     _timer?.cancel();
     setState(() {
       _game = game;
-      _tab = 0;
       _code = '';
       _message = null;
       _lock = null;
-      _history = [];
     });
     await _refreshGame();
+    unawaited(_checkUpdates());
   }
 
-  Future<void> _checkUpdates({bool explicit = false}) async {
-    if (!mounted) return;
-    if (_checking || widget.updates == null) {
-      if (explicit && widget.updates == null) {
-        _notice(
-          'Онлайн-обновления не настроены. Можно импортировать .rpgpack.',
-        );
-      }
-      return;
+  Future<String?> _askCharacter(InstalledGame game, String initial) =>
+      showDialog<String>(
+        context: context,
+        builder: (_) =>
+            _CharacterNameDialog(gameName: game.name, initial: initial),
+      );
+
+  Future<void> _editCharacter() async {
+    final game = _game;
+    if (game == null) return;
+    final name = await _askCharacter(game, _profile?.characterName ?? '');
+    if (name == null || !mounted || _game?.id != game.id) return;
+    try {
+      final saved = await widget.store.savePlayerProfile(game.id, name);
+      if (!mounted || _game?.id != game.id) return;
+      setState(() => _profile = saved);
+      unawaited(_checkUpdates());
+    } catch (e) {
+      _notice(playerError(e));
     }
-    setState(() => _checking = true);
+  }
+
+  Future<void> _checkUpdates({bool explicit = false}) {
+    if (_syncFlight case final running?) return running;
+    if (!mounted || _manualTransfer || widget.updates == null) {
+      return Future.value();
+    }
+    final running = _syncAll();
+    _syncFlight = running;
+    return running.whenComplete(() => _syncFlight = null);
+  }
+
+  Future<void> _syncAll() async {
+    final updates = widget.updates!;
+    setState(() {
+      _checking = true;
+      _syncFailed = false;
+      _syncProgress = null;
+      _syncStatus = 'Проверяем игры и материалы…';
+    });
     String? failure;
-    for (final game in List<InstalledGame>.of(_games ?? [])) {
-      try {
-        final release = await widget.updates!.check(game.id);
+    var noProjects = false;
+    try {
+      final catalog = await updates.catalog();
+      noProjects = catalog.isEmpty && _games?.isEmpty == true;
+      for (final source in catalog) {
         if (!mounted) return;
         setState(() {
-          if (release == null) {
-            _releases.remove(game.id);
-          } else {
-            _releases[game.id] = release;
-          }
+          _syncStatus = 'Загружаем «${source.name}»…';
+          _syncProgress = 0;
         });
-      } catch (e) {
-        failure = playerError(e);
+        try {
+          final installed = await updates.syncGame(
+            source,
+            onProgress: (value) {
+              if (mounted) setState(() => _syncProgress = value.clamp(0, 1));
+            },
+          );
+          if (!mounted) return;
+          if (installed != null) {
+            await _loadGames();
+            if (_game?.id == installed.id && mounted) {
+              setState(() => _game = installed);
+              await _refreshGame();
+            }
+          }
+        } catch (e) {
+          failure = playerError(e);
+        }
       }
+    } catch (e) {
+      failure = playerError(e);
+    }
+    // Pending names are sent once when possible. Only the selected project gets
+    // subsequent heartbeats, so old projects never appear active by accident.
+    try {
+      final profiles = await widget.store.playerProfiles();
+      for (final profile in profiles) {
+        if (!mounted) return;
+        if (profile.pending || profile.gameId == _game?.id) {
+          try {
+            await updates.registerProfile(profile);
+          } catch (e) {
+            failure ??= 'Имя сохранено на устройстве. Отправим мастеру при появлении связи.';
+          }
+        }
+      }
+    } catch (e) {
+      failure ??= playerError(e);
     }
     if (!mounted) return;
-    setState(() => _checking = false);
-    if (explicit) {
-      _notice(
-        failure ??
-            (_releases.isEmpty
-                ? 'Установлены последние версии.'
-                : 'Доступны новые версии игр.'),
-      );
-    }
+    setState(() {
+      _checking = false;
+      _syncProgress = null;
+      _syncFailed = failure != null;
+      _syncStatus = failure == null
+          ? noProjects
+                ? 'В мастерской пока нет доступных проектов.'
+                : 'Игры и материалы обновлены. Можно играть без интернета.'
+          : '$failure Сохранённые игры доступны без интернета. Повторим автоматически.';
+    });
   }
 
   void _notice(String message) {
@@ -228,6 +313,11 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
   }
 
   Future<void> _import() async {
+    if (_busy || _checking) return;
+    setState(() {
+      _busy = true;
+      _manualTransfer = true;
+    });
     try {
       final selection = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -253,6 +343,7 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
       if (mounted) {
         setState(() {
           _busy = false;
+          _manualTransfer = false;
           _progress = null;
         });
       }
@@ -263,7 +354,6 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
     await _loadGames();
     if (!mounted) return;
     setState(() {
-      _releases.remove(game.id);
       if (_game?.id == game.id) _game = game;
     });
     if (_game?.id == game.id) await _refreshGame();
@@ -271,9 +361,11 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
   }
 
   Future<void> _installRelease(PlayerRelease release) async {
-    if (_busy) return;
+    await _syncFlight;
+    if (!mounted || _busy) return;
     setState(() {
       _busy = true;
+      _manualTransfer = true;
       _progress = 0;
     });
     try {
@@ -290,6 +382,7 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
       if (mounted) {
         setState(() {
           _busy = false;
+          _manualTransfer = false;
           _progress = null;
         });
       }
@@ -297,6 +390,7 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
   }
 
   Future<void> _addOnline() async {
+    if (_busy || _checking) return;
     if (widget.updates == null) {
       _notice('Онлайн-обновления не настроены. Можно импортировать .rpgpack.');
       return;
@@ -347,8 +441,11 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
       _notice(playerError(e));
       return;
     }
+    await _syncFlight;
+    if (!mounted) return;
     setState(() {
       _busy = true;
+      _manualTransfer = true;
       _progress = null;
     });
     PlayerRelease? release;
@@ -358,7 +455,12 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
       _notice(playerError(e));
       return;
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _manualTransfer = false;
+        });
+      }
     }
     if (!mounted) return;
     if (release == null) {
@@ -436,19 +538,6 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _reopen(PlayerRecord record) async {
-    final game = _game;
-    if (game == null) return;
-    try {
-      final opened = await widget.store.openedRecord(game.id, record.id);
-      if (mounted && opened != null && _game?.id == game.id) {
-        await _read(opened, game);
-      }
-    } catch (e) {
-      _notice(playerError(e));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final game = _game;
@@ -476,6 +565,37 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
       body: SafeArea(
         child: Column(
           children: [
+            if (_syncStatus != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_checking) ...[
+                      LinearProgressIndicator(value: _syncProgress),
+                      const SizedBox(height: 6),
+                    ],
+                    Text(
+                      '$_syncStatus${_checking && _syncProgress != null ? ' ${(_syncProgress! * 100).round()}%' : ''}',
+                      key: const ValueKey('sync-status'),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _syncFailed
+                            ? Colors.orangeAccent
+                            : const Color(0xffbbb8b2),
+                      ),
+                    ),
+                    if (_syncFailed)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: _checking || _busy ? null : _checkUpdates,
+                          child: const Text('Повторить сейчас'),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             if (_busy)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -490,32 +610,10 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
                   ],
                 ),
               ),
-            Expanded(
-              child: game == null
-                  ? _library()
-                  : _tab == 0
-                  ? _codeScreen()
-                  : _historyScreen(),
-            ),
+            Expanded(child: game == null ? _library() : _codeScreen()),
           ],
         ),
       ),
-      bottomNavigationBar: game == null
-          ? null
-          : NavigationBar(
-              selectedIndex: _tab,
-              onDestinationSelected: (index) => setState(() => _tab = index),
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.dialpad_rounded),
-                  label: 'Код',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.history_rounded),
-                  label: 'История',
-                ),
-              ],
-            ),
     );
   }
 
@@ -555,7 +653,7 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
             const Padding(
               padding: EdgeInsets.only(bottom: 24),
               child: Text(
-                'Добавьте игру от мастера. После загрузки коды и все материалы доступны без интернета.',
+                'Игры и материалы загружаются автоматически при подключении к интернету. После загрузки они доступны без интернета.',
               ),
             ),
           for (final game in _games ?? <InstalledGame>[]) ...[
@@ -574,34 +672,30 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _openGame(game),
             ),
-            if (_releases[game.id] case final release?)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: OutlinedButton.icon(
-                  onPressed: _busy ? null : () => _installRelease(release),
-                  icon: const Icon(Icons.download_rounded),
-                  label: Text(
-                    'Загрузить версию ${release.version} (${_fileSize(release.size)})',
-                  ),
-                ),
-              ),
             const Divider(),
           ],
           const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: _busy ? null : _import,
+          const Text(
+            'Другие способы добавления',
+            style: TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _busy || _checking ? null : _import,
             icon: const Icon(Icons.file_open_outlined),
             label: const Text('Импорт .rpgpack'),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
-            onPressed: _busy ? null : _addOnline,
+            onPressed: _busy || _checking ? null : _addOnline,
             icon: const Icon(Icons.add_link),
             label: const Text('Добавить по ссылке'),
           ),
           const SizedBox(height: 12),
           TextButton.icon(
-            onPressed: _checking ? null : () => _checkUpdates(explicit: true),
+            onPressed: _checking || _busy
+                ? null
+                : () => _checkUpdates(explicit: true),
             icon: _checking
                 ? const SizedBox(
                     width: 18,
@@ -609,9 +703,7 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.refresh),
-            label: Text(
-              _checking ? 'Проверяем версии…' : 'Проверить обновления',
-            ),
+            label: Text(_checking ? 'Синхронизация…' : 'Проверить обновления'),
           ),
         ],
       ),
@@ -638,6 +730,19 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                if (_profile != null) ...[
+                  Text(
+                    _profile!.characterName,
+                    key: const ValueKey('current-character'),
+                    textAlign: TextAlign.center,
+                  ),
+                  TextButton.icon(
+                    onPressed: _editCharacter,
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Изменить имя'),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Text(
                   'Введите код',
                   style: Theme.of(context).textTheme.headlineMedium,
@@ -764,14 +869,6 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
                     child: const Text('Открыть материал'),
                   ),
                 ),
-                if (locked)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 14),
-                    child: Text(
-                      'Открытые материалы доступны в истории.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
               ],
             ),
           ),
@@ -779,36 +876,72 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
       ),
     );
   }
-
-  Widget _historyScreen() => Center(
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 560),
-      child: _history.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.all(32),
-              child: Text(
-                'Здесь появятся открытые материалы. Их можно читать повторно без ограничений.',
-                textAlign: TextAlign.center,
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _history.length,
-              separatorBuilder: (_, _) => const Divider(),
-              itemBuilder: (context, index) {
-                final record = _history[index];
-                return ListTile(
-                  title: Text(record.title),
-                  subtitle: Text(record.groupName ?? 'Открытый материал'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _reopen(record),
-                );
-              },
-            ),
-    ),
-  );
 }
 
 String _fileSize(int size) => size < 1024 * 1024
     ? '${(size / 1024).ceil()} КБ'
     : '${(size / (1024 * 1024)).toStringAsFixed(1)} МБ';
+
+class _CharacterNameDialog extends StatefulWidget {
+  const _CharacterNameDialog({required this.gameName, required this.initial});
+  final String gameName;
+  final String initial;
+  @override
+  State<_CharacterNameDialog> createState() => _CharacterNameDialogState();
+}
+
+class _CharacterNameDialogState extends State<_CharacterNameDialog> {
+  late final _controller = TextEditingController(text: widget.initial);
+  String? _validation;
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _controller.text.trim();
+    if (name.isEmpty ||
+        name.runes.length > 100 ||
+        RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(name)) {
+      setState(() => _validation = 'Введите имя от 1 до 100 символов.');
+      return;
+    }
+    Navigator.pop(context, name);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Имя персонажа'),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.gameName),
+          const SizedBox(height: 16),
+          TextField(
+            key: const ValueKey('character-name'),
+            controller: _controller,
+            autofocus: true,
+            maxLength: 100,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              labelText: 'Как зовут вашего персонажа?',
+              errorText: _validation,
+              border: const OutlineInputBorder(),
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Отмена'),
+      ),
+      FilledButton(onPressed: _submit, child: const Text('Продолжить')),
+    ],
+  );
+}

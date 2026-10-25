@@ -15,6 +15,7 @@ async function fixture(failure?:'migration'|'conflict'|'upload'|'changed',badFie
     const ok=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
     if(url.pathname.endsWith('/workshop_projects'))return ok([row]);
     if(url.pathname.endsWith('/rpc/get_player_release'))return ok(null);
+    if(url.pathname.endsWith('/rpc/get_player_source_version'))return ok({code:'PGRST202',message:'automatic sync migration not installed'},404);
     if(url.pathname.endsWith('/rpc/save_workshop_project')){
       const body=JSON.parse(String(init?.body));assert.equal(body.p_expected_revision,7);
       row={...row,document:body.p_document,revision:8};return ok(row);

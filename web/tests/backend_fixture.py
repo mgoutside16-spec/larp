@@ -40,6 +40,8 @@ class BackendFixture:
         self.player_archives = {}
         self.player_releases = {}
         self.player_updates_available = True
+        self.player_auto_sync_available = False
+        self.players = {}
         self.requests = []
         self.unhandled = []
         self.auth_mail_requests = []
@@ -264,6 +266,15 @@ class BackendFixture:
                     target = next(u for u in self.users.values() if u['user_id'] == body['p_user_id'])
                     target['is_admin'] = body['p_admin']
                     respond(None)
+            elif rpc in ('get_player_source_version', 'list_game_players'):
+                if not self.player_auto_sync_available:
+                    denied('Automatic sync migration not installed', 'PGRST202', 404)
+                elif not self._access(user, pid):
+                    denied()
+                elif rpc == 'get_player_source_version':
+                    respond(self.projects[pid]['player_version'])
+                else:
+                    respond(self.players.get(pid, []))
             elif rpc == 'save_workshop_project':
                 document = body['p_document']
                 pid = document['id']
@@ -273,9 +284,13 @@ class BackendFixture:
                 elif body['p_expected_revision'] != (row['revision'] if row else 0):
                     denied('Проект изменён.', '40001', 409)
                 else:
+                    source_fields = ('packageId', 'name', 'description', 'locations', 'records', 'reserved_codes')
+                    changed = not row or any(row['document'].get(key) != document.get(key) for key in source_fields)
+                    player_version = max((row or {}).get('player_version', 0) + int(changed), document['version'])
                     row = {'id': pid, 'owner_id': row['owner_id'] if row else user['user_id'],
                            'revision': row['revision'] + 1 if row else 1, 'document': deepcopy(document),
                            'status': 'active' if body.get('p_activate', True) or (row and row['status'] == 'active') else 'importing'}
+                    row['player_version'] = player_version
                     self.projects[pid] = row
                     respond(deepcopy(row))
             elif rpc == 'delete_workshop_project':

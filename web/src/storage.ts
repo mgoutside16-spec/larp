@@ -49,6 +49,7 @@ export class Storage {
     requireValue(game, 'Проект не найден. Выберите другой проект.');
     return game;
   }
+  async playerVersion(id:string):Promise<number> {return (await this.game(id)).version;}
   async media(projectId: string, path: string): Promise<Asset> {
     mediaPath(path);
     const asset = await this.db.get('media',[projectId,path]);

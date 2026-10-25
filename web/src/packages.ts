@@ -88,7 +88,8 @@ export function mime(path: string) {
 
 export async function makePackage(store: WorkshopStorage,id: string): Promise<Uint8Array> {
   const game=await store.game(id);
-  requireValue(game.version<Number.MAX_SAFE_INTEGER,'Диапазон версий исчерпан. Создайте копию игры.');
+  const playerVersion=await store.playerVersion(id),version=Math.max(game.version,playerVersion)+1;
+  requireValue(Number.isSafeInteger(version),'Диапазон версий исчерпан. Создайте копию игры.');
   const files:Zippable={},checksums:Record<string,string>={};let total=0;
   for(const row of game.records)for(const block of row.blocks)if(block.kind!=='text' && !Object.hasOwn(checksums,block.value)) {
     const asset=await store.media(id,block.value);
@@ -100,7 +101,7 @@ export async function makePackage(store: WorkshopStorage,id: string): Promise<Ui
     requireValue(!embedded || embedded[1]===checksums[block.value],'Медиафайл повреждён. Восстановите его из резервной копии.');
     files[block.value]=[bytes,{level:0}];
   }
-  const manifest:Manifest={format_version:1,version:game.version+1,created:now(),game:{id:game.packageId,name:game.name,description:game.description},
+  const manifest:Manifest={format_version:1,version,created:now(),game:{id:game.packageId,name:game.name,description:game.description},
     locations:game.locations,records:game.records.map(({revision,...row})=>row),reserved_codes:game.reserved_codes,checksums};
   const description=strToU8(JSON.stringify(manifest,null,2));
   requireValue(description.length<=16*1024**2,'Описание пакета превышает 16 МиБ. Разделите игру на проекты меньшего размера.');

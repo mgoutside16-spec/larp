@@ -110,6 +110,190 @@ void main() {
   Future<void> install() async => store.installPackage(await createPackage());
 
   playerTest(
+    'fresh library automatically loads saved projects without a link or publication',
+    (tester) async {
+      late HttpServer server;
+      late HttpClient client;
+      late UpdateClient updates;
+      var catalogRequests = 0;
+      var registrationRequests = 0;
+      var version = 1;
+      await tester.runAsync(() async {
+        final package = await createPackage();
+        final archive = ZipDecoder().decodeBytes(await package.readAsBytes());
+        final manifest = jsonDecode(
+          utf8.decode(archive.findFile('manifest.json')!.content as List<int>),
+        ) as Map<String, dynamic>;
+        server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          request.response.headers.contentType = ContentType.json;
+          switch (request.uri.path) {
+            case '/rest/v1/rpc/get_player_catalog':
+              catalogRequests++;
+              request.response.write(
+                jsonEncode([
+                  {
+                    'game_id': gameId,
+                    'project_id': '22222222-2222-4222-8222-222222222222',
+                    'name': 'Остров Лафей',
+                    'description': 'Истории острова',
+                    'version': version,
+                    'record_count': 1,
+                    'updated_at': '2026-10-25T00:00:00Z',
+                  },
+                  {
+                    'game_id': '44444444-4444-4444-8444-444444444444',
+                    'project_id': '66666666-6666-4666-8666-666666666666',
+                    'name': 'Пустой проект',
+                    'description': '',
+                    'version': 1,
+                    'record_count': 0,
+                    'updated_at': '2026-10-25T00:00:00Z',
+                  },
+                ]),
+              );
+            case '/rest/v1/rpc/get_player_snapshot':
+              final body = jsonDecode(
+                await utf8.decoder.bind(request).join(),
+              ) as Map<String, dynamic>;
+              final empty = body['p_game_id'] != gameId;
+              final snapshotManifest =
+                  jsonDecode(jsonEncode(manifest)) as Map<String, dynamic>;
+              snapshotManifest['version'] = empty ? 1 : version;
+              if (empty) {
+                snapshotManifest['game'] = {
+                  'id': '44444444-4444-4444-8444-444444444444',
+                  'name': 'Пустой проект',
+                  'description': '',
+                };
+                snapshotManifest['records'] = [];
+                snapshotManifest['locations'] = [];
+                snapshotManifest['reserved_codes'] = [];
+              } else if (version == 2) {
+                (snapshotManifest['records'] as List).single['title'] =
+                    'Сон после изменения';
+              }
+              request.response.write(
+                jsonEncode({
+                  'game_id': body['p_game_id'],
+                  'project_id': empty
+                      ? '66666666-6666-4666-8666-666666666666'
+                      : '22222222-2222-4222-8222-222222222222',
+                  'version': empty ? 1 : version,
+                  'manifest': snapshotManifest,
+                  'files': [],
+                }),
+              );
+            case '/rest/v1/rpc/register_player':
+              registrationRequests++;
+              request.response.write(
+                jsonEncode({
+                  'participant_id': '33333333-3333-4333-8333-333333333333',
+                  'character_name': 'Элиас',
+                  'first_seen': '2026-10-25T00:00:00Z',
+                  'last_seen': '2026-10-25T00:00:00Z',
+                }),
+              );
+            default:
+              request.response.statusCode = 404;
+          }
+          await request.response.close();
+        });
+        client = _RealNetwork().createHttpClient(null);
+        updates = UpdateClient(
+          store,
+          'http://127.0.0.1:${server.port}',
+          'sb_publishable_widget_test',
+          client: client,
+        );
+      });
+      try {
+        expect((await tester.runAsync(store.games))!, isEmpty);
+        await tester.pumpWidget(PlayerApp(store: store, updates: updates));
+        await pumpUntil(tester, find.text('Остров Лафей'));
+        expect(catalogRequests, greaterThan(0));
+        expect(find.text('Введите код'), findsNothing);
+        await pumpUntil(tester, find.text('Пустой проект'));
+        expect((await tester.runAsync(store.games))!, hasLength(2));
+        expect((await tester.runAsync(() => store.game(gameId)))!.version, 1);
+        await tester.tap(find.text('Остров Лафей'));
+        await pumpUntil(tester, find.text('Имя персонажа'));
+        await tester.enterText(find.byType(TextField), 'Элиас');
+        await tester.tap(find.text('Продолжить'));
+        await pumpUntil(tester, find.text('Введите код'));
+        expect(find.text('Элиас'), findsOneWidget);
+        await tester.runAsync(() async {
+          await store.lookup(gameId, '12345');
+          for (var i = 0; i < 3; i++) {
+            await store.lookup(gameId, '99999');
+          }
+        });
+        version = 2;
+        await tester.pump(const Duration(seconds: 20));
+        await pumpUntilValue(
+          tester,
+          () async => (await store.game(gameId))?.version == 2,
+        );
+        expect(
+          (await tester.runAsync(() => store.lockState(gameId)))!.wrongAttempts,
+          3,
+        );
+        expect(
+          (await tester.runAsync(() => store.history(gameId)))!,
+          hasLength(1),
+        );
+        expect(
+          (await tester.runAsync(() => store.history(gameId)))!.single.title,
+          'Сон после изменения',
+        );
+        await pumpUntilValue(tester, () async => registrationRequests > 0);
+        // A manually supplied package remains usable after automatic installs.
+        final manual = await tester.runAsync(() async {
+          final package = await createPackage();
+          final archive = ZipDecoder().decodeBytes(await package.readAsBytes());
+          final manifest = jsonDecode(
+            utf8.decode(
+              archive.findFile('manifest.json')!.content as List<int>,
+            ),
+          ) as Map<String, dynamic>;
+          manifest['version'] = 3;
+          final bytes = utf8.encode(jsonEncode(manifest));
+          final updated = Archive()
+            ..addFile(ArchiveFile('manifest.json', bytes.length, bytes));
+          return File('${root.path}/manual.rpgpack')
+              .writeAsBytes(ZipEncoder().encode(updated));
+        });
+        final original = FilePicker.platform;
+        FilePicker.platform = _SelectedPackagePicker(manual!);
+        try {
+          await tester.tap(find.byTooltip('Ваши игры'));
+          await pumpUntil(
+            tester,
+            find.textContaining('Игры и материалы обновлены'),
+          );
+          await tester.ensureVisible(find.text('Импорт .rpgpack'));
+          await tester.tap(find.text('Импорт .rpgpack'));
+          await pumpUntilValue(
+            tester,
+            () async => (await store.game(gameId))?.version == 3,
+          );
+          expect(
+            (await tester.runAsync(() => store.lockState(gameId)))!
+                .wrongAttempts,
+            3,
+          );
+        } finally {
+          FilePicker.platform = original;
+        }
+      } finally {
+        updates.close();
+        client.close(force: true);
+        await tester.runAsync(() => server.close(force: true));
+      }
+    },
+  );
+
+  playerTest(
     'pasted game link downloads a real release after explicit approval',
     (tester) async {
       late HttpServer server;
@@ -121,7 +305,10 @@ void main() {
         final hash = sha256.convert(bytes).toString();
         server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) async {
-          if (request.uri.path == '/rest/v1/rpc/get_player_release') {
+          if (request.uri.path == '/rest/v1/rpc/get_player_catalog') {
+            request.response.headers.contentType = ContentType.json;
+            request.response.write('[]');
+          } else if (request.uri.path == '/rest/v1/rpc/get_player_release') {
             request.response.headers.contentType = ContentType.json;
             request.response.write(
               jsonEncode({
@@ -149,6 +336,10 @@ void main() {
       try {
         await tester.pumpWidget(PlayerApp(store: store, updates: updates));
         await pumpUntil(tester, find.textContaining('без интернета'));
+        await pumpUntil(
+          tester,
+          find.textContaining('В мастерской пока нет доступных проектов'),
+        );
         await tester.tap(find.text('Добавить по ссылке'));
         await tester.pumpAndSettle();
         await tester.enterText(
@@ -163,6 +354,122 @@ void main() {
         expect(
           (await tester.runAsync(store.games))!.single.name,
           'Остров Лафей',
+        );
+      } finally {
+        updates.close();
+        client.close(force: true);
+        await tester.runAsync(() => server.close(force: true));
+      }
+    },
+  );
+
+  playerTest(
+    'offline character stays playable and registers after reconnecting',
+    (tester) async {
+      late HttpServer server;
+      late HttpClient client;
+      late UpdateClient updates;
+      var online = false;
+      var registrations = 0;
+      await tester.runAsync(() async {
+        await install();
+        await store.lookup(gameId, '12345');
+        for (var i = 0; i < 3; i++) {
+          await store.lookup(gameId, '99999');
+        }
+        server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          request.response.headers.contentType = ContentType.json;
+          if (!online) {
+            request.response.statusCode = 503;
+            request.response.write('{}');
+          } else if (request.uri.path.endsWith('get_player_catalog')) {
+            request.response.write('[]');
+          } else if (request.uri.path.endsWith('register_player')) {
+            final body = jsonDecode(
+              await utf8.decoder.bind(request).join(),
+            ) as Map<String, dynamic>;
+            registrations++;
+            request.response.write(
+              jsonEncode({
+                'participant_id': '33333333-3333-4333-8333-333333333333',
+                'character_name': body['p_character_name'],
+                'first_seen': '2026-10-25T00:00:00Z',
+                'last_seen': '2026-10-25T00:00:00Z',
+              }),
+            );
+          } else {
+            request.response.statusCode = 404;
+          }
+          await request.response.close();
+        });
+        client = _RealNetwork().createHttpClient(null);
+        updates = UpdateClient(
+          store,
+          'http://127.0.0.1:${server.port}',
+          'sb_publishable_widget_test',
+          client: client,
+        );
+      });
+      try {
+        await tester.pumpWidget(PlayerApp(store: store, updates: updates));
+        await pumpUntil(tester, find.text('Остров Лафей'));
+        await tester.tap(find.text('Остров Лафей'));
+        await pumpUntil(tester, find.text('Имя персонажа'));
+        await tester.enterText(find.byType(TextField), 'Анна');
+        await tester.tap(find.text('Продолжить'));
+        await pumpUntil(tester, find.text('Введите код'));
+        expect(find.text('Анна'), findsOneWidget);
+        final profile = (await tester.runAsync(
+          () => store.playerProfile(gameId),
+        ))!;
+        expect(profile.pending, isTrue);
+        expect(
+          (await tester.runAsync(() => store.lockState(gameId)))!.wrongAttempts,
+          3,
+        );
+        await pumpUntil(tester, find.text('Повторить сейчас'));
+        expect(find.byKey(const ValueKey('sync-status')), findsOneWidget);
+        await tester.tap(find.text('Изменить имя'));
+        await pumpUntil(tester, find.text('Имя персонажа'));
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          'Анна',
+        );
+        await tester.enterText(find.byType(TextField), 'Анна Морская');
+        await tester.tap(find.text('Продолжить'));
+        await pumpUntil(tester, find.text('Анна Морская'));
+        final renamed = (await tester.runAsync(
+          () => store.playerProfile(gameId),
+        ))!;
+        expect(renamed.token, profile.token);
+        expect(
+          (await tester.runAsync(() => store.lockState(gameId)))!.wrongAttempts,
+          3,
+        );
+        expect(
+          (await tester.runAsync(() => store.history(gameId)))!,
+          hasLength(1),
+        );
+        online = true;
+        await tester.pump(const Duration(seconds: 20));
+        await pumpUntilValue(
+          tester,
+          () async => (await store.playerProfile(gameId))?.pending == false,
+        );
+        expect(registrations, greaterThan(0));
+        await tester.tap(find.byTooltip('Ваши игры'));
+        await tester.pump();
+        final previous = registrations;
+        await tester.pump(const Duration(seconds: 20));
+        await pumpUntil(
+          tester,
+          find.textContaining('Игры и материалы обновлены'),
+        );
+        expect(
+          registrations,
+          previous,
+          reason: 'Old projects do not receive heartbeats',
         );
       } finally {
         updates.close();
@@ -221,7 +528,7 @@ void main() {
       ),
     );
     await pumpUntil(tester, find.text('Остров Лафей'));
-    await tester.tap(find.text('Остров Лафей'));
+    await chooseCharacter(tester, 'Остров Лафей');
     await pumpUntil(tester, find.text('Введите код'));
     for (final digit in ['1', '2', '3', '4', '5']) {
       await tester.tap(find.byKey(ValueKey('digit-$digit')));
@@ -239,7 +546,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  playerTest('history remains available during three-attempt lock', (
+  playerTest('code screen has no history tab and keeps stored opened records', (
     tester,
   ) async {
     await tester.runAsync(() async {
@@ -256,14 +563,12 @@ void main() {
       ),
     );
     await pumpUntil(tester, find.text('Остров Лафей'));
-    await tester.tap(find.text('Остров Лафей'));
+    await chooseCharacter(tester, 'Остров Лафей');
     await pumpUntil(tester, find.textContaining('Повторите через'));
     expect(find.textContaining('Повторите через'), findsOneWidget);
-    await tester.tap(find.text('История'));
-    await pumpUntil(tester, find.text('Первый сон'));
-    await tester.tap(find.text('Первый сон'));
-    await pumpUntil(tester, find.textContaining('Берег', findRichText: true));
-    expect(find.textContaining('Берег', findRichText: true), findsWidgets);
+    expect(find.text('История'), findsNothing);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect((await tester.runAsync(() => store.history(gameId)))!, hasLength(1));
   });
 
   playerTest(
@@ -272,7 +577,7 @@ void main() {
       await tester.runAsync(install);
       await tester.pumpWidget(PlayerApp(store: store));
       await pumpUntil(tester, find.text('Остров Лафей'));
-      await tester.tap(find.text('Остров Лафей'));
+      await chooseCharacter(tester, 'Остров Лафей');
       await pumpUntil(tester, find.text('Введите код'));
       await tester.tap(find.byKey(const ValueKey('digit-1')));
       await tester.pump();
@@ -282,8 +587,17 @@ void main() {
         (await tester.runAsync(() => store.lockState(gameId)))!.wrongAttempts,
         0,
       );
+      await tester.ensureVisible(find.byKey(const ValueKey('digit-clear')));
       await tester.tap(find.byKey(const ValueKey('digit-clear')));
       for (var attempt = 1; attempt <= 3; attempt++) {
+        await pumpUntilValue(
+          tester,
+          () async =>
+              tester
+                  .widget<TextButton>(find.byKey(const ValueKey('digit-9')))
+                  .onPressed !=
+              null,
+        );
         await tester.ensureVisible(find.byKey(const ValueKey('digit-9')));
         for (var digit = 0; digit < 5; digit++) {
           await tester.tap(find.byKey(const ValueKey('digit-9')));
@@ -303,9 +617,7 @@ void main() {
         (await tester.runAsync(() => store.lockState(gameId)))!.wrongAttempts,
         3,
       );
-      await tester.tap(find.text('История'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Здесь появятся'), findsOneWidget);
+      expect(find.text('История'), findsNothing);
     },
   );
 
@@ -334,7 +646,7 @@ void main() {
       final delayed = _DelayedLookupStore(store);
       await tester.pumpWidget(PlayerApp(store: delayed));
       await pumpUntil(tester, find.text('Остров Лафей'));
-      await tester.tap(find.text('Остров Лафей'));
+      await chooseCharacter(tester, 'Остров Лафей');
       await pumpUntil(tester, find.text('Введите код'));
       for (final digit in ['1', '2', '3', '4', '5']) {
         await tester.ensureVisible(find.byKey(ValueKey('digit-$digit')));
@@ -361,7 +673,7 @@ void main() {
       expect(delayed.started.isCompleted, isTrue);
       await tester.tap(find.byTooltip('Ваши игры'));
       await tester.pump();
-      await tester.tap(find.text('Другая игра'));
+      await chooseCharacter(tester, 'Другая игра');
       await tester.pump();
       delayed.release.complete();
       // Drain the real lookup and its completion handlers after switching context.
@@ -395,7 +707,7 @@ void main() {
       ),
     );
     await pumpUntil(tester, find.text('Остров Лафей'));
-    await tester.tap(find.text('Остров Лафей'));
+    await chooseCharacter(tester, 'Остров Лафей');
     await pumpUntil(tester, find.text('Введите код'));
     await capture(tester, 'keypad-narrow-top');
     expect(find.byKey(const ValueKey('digit-0')), findsOneWidget);
@@ -430,7 +742,7 @@ Future<void> capture(WidgetTester tester, String name) async {
 // animations use Flutter's fake clock. Yield real time until the UI arrives.
 Future<void> pumpUntil(WidgetTester tester, Finder finder) async {
   final elapsed = Stopwatch()..start();
-  while ((finder.evaluate().isEmpty || tester.binding.hasScheduledFrame) &&
+  while (finder.evaluate().isEmpty &&
       elapsed.elapsed < const Duration(seconds: 5)) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 10)),
@@ -438,7 +750,54 @@ Future<void> pumpUntil(WidgetTester tester, Finder finder) async {
     await tester.pump(const Duration(milliseconds: 50));
   }
   expect(finder, findsWidgets);
-  await tester.pumpAndSettle();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+Future<void> chooseCharacter(WidgetTester tester, String game) async {
+  await tester.tap(find.text(game));
+  await pumpUntil(tester, find.text('Имя персонажа'));
+  await tester.enterText(
+    find.byKey(const ValueKey('character-name')),
+    'Персонаж',
+  );
+  await tester.tap(find.text('Продолжить'));
+  await pumpUntil(tester, find.text('Введите код'));
+}
+
+Future<void> pumpUntilValue(
+  WidgetTester tester,
+  Future<bool> Function() predicate,
+) async {
+  final elapsed = Stopwatch()..start();
+  var pending = false;
+  bool? value;
+  Object? failure;
+  while (elapsed.elapsed < const Duration(seconds: 5)) {
+    if (!pending) {
+      pending = true;
+      await tester.runAsync(() async {
+        unawaited(
+          predicate().then(
+            (result) {
+              value = result;
+              pending = false;
+            },
+            onError: (Object error) {
+              failure = error;
+              pending = false;
+            },
+          ),
+        );
+      });
+    }
+    if (failure != null) throw failure!;
+    if (value == true) return;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+  expect(value, isTrue);
 }
 
 // The native file dialog cannot run in a headless widget process. Only its
@@ -512,6 +871,17 @@ class _DelayedLookupStore implements PlayerStore {
       real.mediaFile(id, path, recordId: recordId);
   @override
   Future<LookupResult> lockState(String id) => real.lockState(id);
+  @override
+  Future<PlayerProfile?> playerProfile(String gameId) =>
+      real.playerProfile(gameId);
+  @override
+  Future<List<PlayerProfile>> playerProfiles() => real.playerProfiles();
+  @override
+  Future<PlayerProfile> savePlayerProfile(String gameId, String name) =>
+      real.savePlayerProfile(gameId, name);
+  @override
+  Future<void> markPlayerRegistered(String gameId, String token, String name) =>
+      real.markPlayerRegistered(gameId, token, name);
   @override
   Future<void> close() => real.close();
 }

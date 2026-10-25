@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:sqflite/sqflite.dart';
 
@@ -26,7 +27,7 @@ class PlayerStore {
       final db = await (factory ?? databaseFactory).openDatabase(
         '${root.path}/player.sqlite',
         options: OpenDatabaseOptions(
-          version: 1,
+          version: 2,
           onConfigure: (db) async {
             await db.execute('PRAGMA foreign_keys = ON');
           },
@@ -46,6 +47,10 @@ class PlayerStore {
             await db.execute(
               'CREATE TABLE opened (game_id TEXT NOT NULL,record_id TEXT NOT NULL,json TEXT NOT NULL,directory TEXT NOT NULL,opened_at INTEGER NOT NULL,PRIMARY KEY(game_id,record_id))',
             );
+            await _createProfiles(db);
+          },
+          onUpgrade: (db, oldVersion, newVersion) async {
+            if (oldVersion < 2) await _createProfiles(db);
           },
         ),
       );
@@ -56,6 +61,10 @@ class PlayerStore {
       );
     }
   }
+
+  static Future<void> _createProfiles(DatabaseExecutor db) => db.execute(
+    'CREATE TABLE profiles (game_id TEXT PRIMARY KEY,character_name TEXT NOT NULL,token TEXT NOT NULL,pending INTEGER NOT NULL DEFAULT 1 CHECK(pending IN (0,1)))',
+  );
 
   Future<T> _serial<T>(Future<T> Function() action) {
     final result = Completer<T>();
@@ -126,6 +135,89 @@ class PlayerStore {
     final row = await _game(id);
     return row == null ? null : _installed(row);
   });
+
+  PlayerProfile _profile(Map<String, Object?> row) => PlayerProfile(
+    gameId: row['game_id'] as String,
+    characterName: row['character_name'] as String,
+    token: row['token'] as String,
+    pending: row['pending'] == 1,
+  );
+
+  Future<PlayerProfile?> _playerProfile(String gameId) async {
+    final rows = await _db.query(
+      'profiles',
+      where: 'game_id = ?',
+      whereArgs: [gameId.toLowerCase()],
+    );
+    return rows.isEmpty ? null : _profile(rows.single);
+  }
+
+  Future<PlayerProfile?> playerProfile(String gameId) =>
+      _serial(() => _playerProfile(gameId));
+
+  Future<List<PlayerProfile>> playerProfiles() => _serial(
+    () async => (await _db.query(
+      'profiles',
+      orderBy: 'game_id',
+    )).map(_profile).toList(growable: false),
+  );
+
+  Future<PlayerProfile> savePlayerProfile(String gameId, String name) =>
+      _serial(() async {
+        final characterName = name.trim();
+        if (characterName.isEmpty ||
+            characterName.runes.length > 100 ||
+            RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(name)) {
+          throw const PlayerException(
+            'Имя персонажа должно содержать от 1 до 100 символов без управляющих знаков.',
+          );
+        }
+        final game = await _requireGame(gameId);
+        final id = game['id'] as String;
+        final existing = await _playerProfile(id);
+        final String token;
+        if (existing != null) {
+          token = existing.token;
+        } else {
+          final random = Random.secure();
+          token = base64Url
+              .encode(List<int>.generate(32, (_) => random.nextInt(256)))
+              .replaceAll('=', '');
+        }
+        try {
+          await _db.insert('profiles', {
+            'game_id': id,
+            'character_name': characterName,
+            'token': token,
+            'pending': 1,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
+        } on DatabaseException {
+          // SQLite errors can contain bound parameters, including the secret.
+          throw const PlayerException('Не удалось сохранить имя персонажа.');
+        }
+        return PlayerProfile(
+          gameId: id,
+          characterName: characterName,
+          token: token,
+          pending: true,
+        );
+      });
+
+  Future<void> markPlayerRegistered(String gameId, String token, String name) =>
+      _serial(() async {
+        try {
+          await _db.update(
+            'profiles',
+            {'pending': 0},
+            where: 'game_id = ? AND token = ? AND character_name = ?',
+            whereArgs: [gameId.toLowerCase(), token, name],
+          );
+        } on DatabaseException {
+          throw const PlayerException(
+            'Не удалось сохранить регистрацию персонажа.',
+          );
+        }
+      });
 
   Future<InstalledGame> installPackage(
     File file, {

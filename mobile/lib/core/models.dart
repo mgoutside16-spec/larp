@@ -13,6 +13,20 @@ class InstalledGame {
   final DateTime installedAt;
 }
 
+class PlayerProfile {
+  const PlayerProfile({
+    required this.gameId,
+    required this.characterName,
+    required this.token,
+    required this.pending,
+  });
+  final String gameId;
+  final String characterName;
+  // Device secret: never include it in diagnostics or display strings.
+  final String token;
+  final bool pending;
+}
+
 class ContentBlock {
   const ContentBlock({required this.kind, required this.value});
   final String kind;

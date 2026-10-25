@@ -7,6 +7,7 @@ import {deleteDB} from 'idb';
 
 export interface Identity {user_id:string;email:string;display_name:string;is_admin:boolean}
 export interface Member {user_id:string;email:string;display_name:string;is_owner:boolean}
+export interface GamePlayer {participant_id:string;character_name:string;first_seen:string;last_seen:string}
 interface Snapshot {id:string;owner_id:string;revision:number;document:Game;status:string}
 
 export function backendMessage(error:{message?:string;code?:string}|null):Error {
@@ -58,6 +59,28 @@ export class CloudStorage implements WorkshopStorage {
     const item=snapshot(data);this.revisions.set(id,item);await this.local.cacheSnapshot(item.document);return item;
   }
   async game(id:string){return (await this.fetch(id)).document;}
+  async playerVersion(id:string):Promise<number>{
+    this.check();const {data,error}=await this.client.rpc('get_player_source_version',{p_project_id:id});
+    this.check();
+    // Older deployments can still export and publish before the additive migration.
+    if(error?.code==='PGRST202')return (await this.game(id)).version;
+    if(error)throw backendMessage(error);
+    requireValue(Number.isSafeInteger(data)&&data>=0,'Хранилище вернуло некорректную версию материалов игрока.');
+    return data;
+  }
+  async players(id:string):Promise<GamePlayer[]>{
+    this.check();const {data,error}=await this.client.rpc('list_game_players',{p_project_id:id});this.check();
+    if(error)throw backendMessage(error);
+    requireValue(Array.isArray(data),'Хранилище вернуло некорректный список игроков.');
+    return data.map(row=>{
+      requireValue(typeof row?.participant_id==='string'&&typeof row.character_name==='string'
+        &&typeof row.first_seen==='string'&&Number.isFinite(Date.parse(row.first_seen))
+        &&typeof row.last_seen==='string'&&Number.isFinite(Date.parse(row.last_seen)),
+      'Хранилище вернуло некорректный список игроков.');
+      const {participant_id,character_name,first_seen,last_seen}=row;
+      return {participant_id,character_name,first_seen,last_seen};
+    });
+  }
   private async save(game:Game,revision:number,activate=true){
     this.check();const {data,error}=await this.client.rpc('save_workshop_project',{p_document:game,p_expected_revision:revision,p_activate:activate});
     if(error)throw Object.assign(backendMessage(error),{backendCode:error.code});this.check();const row=snapshot(data);

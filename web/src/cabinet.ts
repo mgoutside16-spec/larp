@@ -4,6 +4,15 @@ import {escapeHtml as e} from './richtext';
 export async function mountCabinet(root:HTMLElement,page:string,account:AccountRuntime,projectId:string|null,onChanged:(notice?:string)=>Promise<void>):Promise<void>{
   const user=account.identity,service=account.service;
   root.innerHTML='<p class="muted">Загружаем кабинет…</p>';
+  if(page==='players'){
+    if(!projectId){root.innerHTML='<h1>Игроки</h1><p class="muted">Сначала откройте проект.</p>';return;}
+    const pending=root.firstChild;
+    const players=await account.store.players(projectId);
+    if(!root.isConnected||root.firstChild!==pending)return;
+    const date=(value:string)=>new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    root.innerHTML=`<div class="page-heading"><div><h1>Игроки</h1><p>Персонажи, зарегистрированные в приложении игрока для текущего проекта.</p></div></div><section class="materials-panel"><div class="table-scroll"><table class="team-list"><thead><tr><th>Персонаж</th><th>Первая связь</th><th>Последняя связь</th></tr></thead><tbody>${players.map(player=>`<tr><td>${e(player.character_name)}</td><td>${e(date(player.first_seen))}</td><td>${e(date(player.last_seen))}</td></tr>`).join('')}</tbody></table></div>${players.length?'':'<div class="empty-table"><h2>Игроки пока не зарегистрировались</h2><p>Персонаж появится здесь, когда игрок выберет проект, введёт имя и приложение свяжется с сервером.</p></div>'}</section><p class="page-footnote">Последняя связь — время обращения приложения к серверу. Игрок может продолжать игру без интернета. Список обновляется автоматически.</p>`;
+    return;
+  }
   if(page==='profile'){
     root.innerHTML=`<div class="page-heading"><div><h1>Личный кабинет</h1><p>Ваш аккаунт и доступ к мастерской.</p></div><span class="team-role">${user.is_admin?'Администратор':'Мастер'}</span></div><section class="team-section profile-form"><h2>Профиль</h2><p class="profile-email">${e(user.email)}</p><form><label class="field">Как к вам обращаться<input name="name" value="${e(user.display_name)}" maxlength="100" required></label><button class="button primary" type="submit">Сохранить имя</button><p class="team-status" role="status"></p></form></section><section class="team-section profile-form"><h2>Проекты команды</h2><p class="profile-email">${user.is_admin?'Вам доступны все проекты мастерской и управление пользователями.':'Вам доступны ваши проекты и проекты, в которые вас добавили. В общем проекте можно одновременно работать над разными записями.'}</p><p class="small muted">При выходе копии облачных проектов удаляются из кеша этого браузера. Сами проекты остаются в аккаунте.</p></section>`;
     root.querySelector('form')!.addEventListener('submit',async event=>{event.preventDefault();const button=root.querySelector<HTMLButtonElement>('[type=submit]')!,status=root.querySelector<HTMLElement>('.team-status')!;button.disabled=true;

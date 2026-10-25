@@ -43,6 +43,7 @@ jobs:
           python tests/account_check.py
           python tests/review_regressions.py
           python tests/player_publication_check.py
+          python tests/player_auto_sync_check.py
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
@@ -89,6 +90,12 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f backend/player-updates.sql
           psql -v ON_ERROR_STOP=1 -f backend/test-player-updates.sql
           python backend/test-player-concurrency.py
+      - name: Verify automatic player catalog, media and participants
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/player-auto-sync.sql
+          psql -v ON_ERROR_STOP=1 -f backend/player-auto-sync.sql
+          psql -v ON_ERROR_STOP=1 -f backend/test-player-auto-sync.sql
+          python backend/test-player-auto-migration.py
   deploy:
     needs: [build, policies]
     runs-on: ubuntu-latest
