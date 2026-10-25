@@ -186,9 +186,36 @@ set local request.jwt.claim.sub='11111111-1111-4111-8111-111111111111';
 select pg_temp.assert_ok((select count(*)=2 from public.workshop_projects),'master cannot see another master independent project');
 set local request.jwt.claim.sub='44444444-4444-4444-8444-444444444444';
 select pg_temp.expect_error($q$select public.delete_workshop_project('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',3)$q$,'40001','administrator delete still requires current revision');
+reset role;
+select pg_temp.assert_ok(not exists(select 1 from public.workshop_deleted_projects where id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'stale deletion creates no cleanup tombstone');
+set local role authenticated;
 select public.delete_workshop_project('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',4);
 select pg_temp.assert_ok((select count(*)=2 from public.workshop_projects),'administrator deletes foreign project');
 select pg_temp.assert_ok((select count(*)=1 from storage.objects),'orphaned storage objects become inaccessible after project deletion');
+-- A successful project deletion retains only private cleanup authorization.
+reset role;
+select pg_temp.assert_ok(not exists(select 1 from public.workshop_deleted_projects where id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),'failed CAS never creates project cleanup tombstone');
+set local role authenticated;
+set local request.jwt.claim.sub='33333333-3333-4333-8333-333333333333';
+set local storage.operation='storage.object.delete_many';
+with removed as (delete from storage.objects where name='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/media/file.png' returning id)
+ select pg_temp.assert_ok((select count(*)=0 from removed),'nonowner cannot delete tombstoned project media');
+select pg_temp.expect_error($q$select * from public.workshop_deleted_projects$q$,'42501','project cleanup tombstones are private');
+select pg_temp.expect_error($q$select public.save_workshop_project(pg_temp.doc(),0)$q$,'40001','deleted project UUID cannot be recreated to inherit old media');
+set local request.jwt.claim.sub='11111111-1111-4111-8111-111111111111';
+set local storage.operation='storage.object.get_authenticated';
+select pg_temp.assert_ok((select count(*)=0 from storage.objects where name like 'aaaaaaaa%'),'owner cannot read deleted project media');
+set local storage.operation='storage.object.list';
+select pg_temp.assert_ok((select count(*)=0 from storage.objects where name like 'aaaaaaaa%'),'owner cannot list deleted project media');
+set local storage.operation='';
+select pg_temp.expect_error($q$insert into storage.objects(bucket_id,name) values('workshop-media','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/media/after-delete.png')$q$,'42501','owner cannot upload to deleted project');
+set local storage.operation='storage.object.delete_many';
+with removed as (delete from storage.objects where name='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/media/file.png' returning id)
+ select pg_temp.assert_ok((select count(*)=1 from removed),'owner deletes known orphan media after successful project deletion');
+set local request.jwt.claim.sub='44444444-4444-4444-8444-444444444444';
+with removed as (delete from storage.objects where name='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/media/member.png' returning id)
+ select pg_temp.assert_ok((select count(*)=1 from removed),'administrator deletes remaining orphan project media');
+set local storage.operation='';
 -- Identity backfills profiles for accounts created before the migration.
 reset role;
 delete from public.workshop_profiles where user_id='33333333-3333-4333-8333-333333333333';
