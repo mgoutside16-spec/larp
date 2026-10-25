@@ -13,3 +13,4 @@ node_modules/
 web/dist/
 test-results/
 playwright-report/
+.larp-studio-settings/

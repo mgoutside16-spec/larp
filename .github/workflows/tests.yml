@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       QT_QPA_PLATFORM: offscreen
-      LARP_STUDIO_CONFIG_DIR: ${{ runner.temp }}/larp-studio-settings
+      LARP_STUDIO_CONFIG_DIR: .larp-studio-settings
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

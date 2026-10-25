@@ -39,5 +39,10 @@ Enter paragraphs, pending media/text edits, export/import size-limit consistency
 Compatibility checked: Python reads/imports browser .rpgpack; openpyxl reads
 browser Excel and pypdf reads browser PDF with default spoiler hiding.
 Production npm audit: 0 vulnerabilities after dependency updates.
-Deployment: Pages API creation denied to integration (403); workflow's scoped
-GITHUB_TOKEN will be tested through actual publishing. Not yet claimed published.
+Deployment: source pushed to main, commit 6e813a8. GitHub run 40191908509 passed
+installation, Node tests, build and both browser suites; Configure Pages failed
+with Create Pages site / Resource not accessible by integration (403), including
+the workflow's GITHUB_TOKEN. User asked asynchronously to enable Settings > Pages
+> Source: GitHub Actions. No site availability claim until actual HTTPS check.
+Manual desktop workflow's invalid runner context in job env corrected to a local
+settings directory; no desktop runtime or functionality changed.
