@@ -55,6 +55,8 @@ set local storage.operation='';
 set local request.path='/object/workshop-media/88888888-aaaa-4aaa-8aaa-aaaaaaaaaaaa/media/%D0%9A%D0%B0%D0%B4%D1%80%201.png';
 select pg_temp.assert_ok(public.player_storage_is_file_get('workshop-media','88888888-aaaa-4aaa-8aaa-aaaaaaaaaaaa/media/Кадр 1.png'),'encoded UTF8 filename matches exact requested path');
 select pg_temp.assert_ok(not public.player_storage_is_file_get('workshop-media','88888888-aaaa-4aaa-8aaa-aaaaaaaaaaaa/media/Other.png'),'encoded path cannot authorize another object');
+set local request.path='/object/workshop-media/project/media/%D0%9A%D0%B0%D0%B4%D1%80%20(1)!.png';
+select pg_temp.assert_ok(public.player_storage_is_file_get('workshop-media','project/media/Кадр (1)!.png'),'URI component punctuation with encoded UTF8 matches mobile encoding');
 set local storage.operation='object.get_authenticated';
 set local request.path='';
 select pg_temp.assert_ok((select count(*)=2 from storage.objects),'unprefixed authenticated GET operation supported');

@@ -9,7 +9,7 @@ declare bytes bytea:=pg_catalog.convert_to(p_path,'UTF8'); result text:=''; i in
 begin
  for i in 0..pg_catalog.octet_length(bytes)-1 loop
   b:=pg_catalog.get_byte(bytes,i);
-  if b between 48 and 57 or b between 65 and 90 or b between 97 and 122 or b in (45,46,47,95,126) then
+  if b between 48 and 57 or b between 65 and 90 or b between 97 and 122 or b in (33,39,40,41,42,45,46,47,95,126) then
    result:=result||pg_catalog.chr(b);
   else result:=result||'%'||pg_catalog.upper(pg_catalog.lpad(pg_catalog.to_hex(b),2,'0'));end if;
  end loop;
