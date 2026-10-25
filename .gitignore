@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+*.spec
+!LARPStudio.spec
+node_modules/
+web/dist/
+test-results/
+playwright-report/

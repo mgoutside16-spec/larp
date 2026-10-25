@@ -1,0 +1,46 @@
+name: Workshop tests and Windows build
+on: [workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      QT_QPA_PLATFORM: offscreen
+      LARP_STUDIO_CONFIG_DIR: ${{ runner.temp }}/larp-studio-settings
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Qt runtime libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libopengl0 libgl1 libxkbcommon0
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pip install --no-deps -e .
+      - run: python -m pip check
+      - run: python -m pytest -q --junitxml=test-results.xml
+      - run: python -m larp_studio --smoke-test
+      - name: Build Windows distribution
+        if: runner.os == 'Windows'
+        run: python -m PyInstaller --noconfirm LARPStudio.spec
+      - name: Check packaged Windows application startup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath '.\dist\LARP Studio\LARP Studio.exe' -ArgumentList '--smoke-test' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged application failed: $($process.ExitCode)" }
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: LARP-Studio-Windows
+          path: dist/LARP Studio/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}
+          path: test-results.xml
