@@ -18,7 +18,7 @@ export async function excel(game:Game):Promise<Uint8Array> {
   const {default:ExcelJS}=await import('exceljs');
   const book=new ExcelJS.Workbook(),sheet=book.addWorksheet('Коды');
   sheet.columns=[{header:'Код',key:'code',width:14},{header:'Название',key:'title',width:42},
-    {header:'Локация',key:'location',width:30},{header:'Содержимое',key:'types',width:30},{header:'Изменено',key:'modified',width:26}];
+    {header:'Группа',key:'location',width:30},{header:'Содержимое',key:'types',width:30},{header:'Изменено',key:'modified',width:26}];
   for(const row of ordered(game))sheet.addRow({code:row.code,title:row.title,location:locationName(game,row),types:types(row).join(', '),modified:row.modified});
   sheet.getRow(1).eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF193348'}};});
   sheet.views=[{state:'frozen',ySplit:1}];sheet.autoFilter={from:'A1',to:`E${sheet.rowCount}`};
@@ -39,7 +39,7 @@ export async function pdf(game:Game,showTitle=false,showLocation=false):Promise<
     doc.setTextColor(25,51,72);doc.setFontSize(37);doc.text(row.code,x+w/2,y+h/2,{align:'center'});
     doc.setFontSize(9);
     if(showTitle)doc.text(doc.splitTextToSize(row.title,w-12).slice(0,2),x+w/2,y+h-17,{align:'center'});
-    if(showLocation)doc.text(doc.splitTextToSize(locationName(game,row)||'Без локации',w-12).slice(0,1),x+w/2,y+h-6,{align:'center'});
+    if(showLocation)doc.text(doc.splitTextToSize(locationName(game,row)||'Без группы',w-12).slice(0,1),x+w/2,y+h-6,{align:'center'});
   }
   if(!rows.length){doc.setFontSize(13);doc.text('В проекте пока нет записей.',margin,25);}
   return doc.output('arraybuffer');

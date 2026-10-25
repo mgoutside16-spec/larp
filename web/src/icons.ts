@@ -1,4 +1,5 @@
 const paths:Record<string,string>={
+  logout:'<path d="M9 4H3v16h6M10 12h11m-4-4 4 4-4 4"/>',
   layers:'<path d="m12 3 10 6-10 6L2 9z"/><path d="m2 13 10 6 10-6M2 17l10 6 10-6"/>',
   folder:'<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>',
   file:'<path d="M14 2H5v20h14V7zM14 2v6h5M8 12h8M8 16h6"/>',

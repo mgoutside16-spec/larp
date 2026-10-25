@@ -5,6 +5,7 @@ import shutil
 import unittest
 
 from playwright.sync_api import sync_playwright, expect
+from backend_fixture import BackendFixture
 
 URL = os.environ.get('LARP_WEB_URL', 'http://127.0.0.1:5173')
 
@@ -22,9 +23,14 @@ class BrowserRegression(unittest.TestCase):
 
     def setUp(self):
         self.context = self.browser.new_context()
+        self.backend = BackendFixture()
+        self.backend.install(self.context)
         self.page = self.context.new_page()
+        self.errors = []
+        self.page.on('pageerror', lambda error: self.errors.append(str(error)))
         self.page.goto(URL)
         self.page.wait_for_load_state('networkidle')
+        self.backend.login(self.page)
         self.page.get_by_role('button', name='Новый проект', exact=True).click()
         self.page.locator('dialog [name=name]').fill('Регрессионная проверка')
         self.page.get_by_role('button', name='Создать проект', exact=True).click()
@@ -34,6 +40,9 @@ class BrowserRegression(unittest.TestCase):
         self.page.locator('[data-add=text]').click()
 
     def tearDown(self):
+        self.assertEqual(self.errors, [])
+        self.assertEqual(self.backend.unhandled, [])
+        self.assertEqual(self.backend.auth_mail_requests, [])
         self.context.close()
 
     def test_enter_keeps_separate_lines_after_save_and_reopen(self):

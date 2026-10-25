@@ -40,6 +40,8 @@ jobs:
           python -m http.server 5173 --bind 127.0.0.1 --directory dist > /tmp/larp-web-server.log 2>&1 &
           python tests/browser_check.py
           python tests/regression_check.py
+          python tests/account_check.py
+          python tests/review_regressions.py
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
@@ -52,8 +54,36 @@ jobs:
         with:
           name: browser-test-results
           path: ${{ runner.temp }}/larp-browser-tests/
+  policies:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: disposable-test-database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: disposable-test-database
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify real PostgreSQL roles and shared-project policies
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/test-bootstrap.sql
+          psql -v ON_ERROR_STOP=1 -f backend/schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/account-update.sql
+          psql -v ON_ERROR_STOP=1 -f backend/test-policies.sql
   deploy:
-    needs: build
+    needs: [build, policies]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

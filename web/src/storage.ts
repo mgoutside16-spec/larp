@@ -1,5 +1,6 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import { type Asset, type Draft, type Game, type Material, KINDS, now, title, requireValue, mediaPath, sha256 } from './types';
+import { validateTemplate, type PrintTemplate } from './print-layout';
 
 export function allocateCode(reserved: string[]): string {
   const occupied = new Set(reserved);
@@ -83,7 +84,7 @@ export class Storage {
   async addLocation(id: string, name: string): Promise<number> {
     name=title(name); let locationId=0;
     await this.update(id,game=>{
-      requireValue(!game.locations.some(l=>l.name===name),'Локация с таким названием уже есть.');
+      requireValue(!game.locations.some(l=>l.name===name),'Группа с таким названием уже есть.');
       locationId=Math.max(0,...game.locations.map(l=>l.id))+1;
       game.locations.push({id:locationId,name});
     });return locationId;
@@ -91,8 +92,8 @@ export class Storage {
   async renameLocation(id: string, loc: number, name: string) {
     name=title(name);
     return this.update(id,game=>{
-      requireValue(!game.locations.some(l=>l.id!==loc && l.name===name),'Локация с таким названием уже есть.');
-      const item=game.locations.find(l=>l.id===loc); requireValue(item,'Локация не найдена.');item.name=name;
+      requireValue(!game.locations.some(l=>l.id!==loc && l.name===name),'Группа с таким названием уже есть.');
+      const item=game.locations.find(l=>l.id===loc); requireValue(item,'Группа не найдена.');item.name=name;
     });
   }
   async deleteLocation(id: string, loc: number) {
@@ -101,12 +102,32 @@ export class Storage {
       game.records.forEach(r=>{if(r.location_id===loc)r.location_id=null;});
     });
   }
+  async addGroup(id:string,name:string){return this.addLocation(id,name);}
+  async renameGroup(id:string,group:number,name:string){return this.renameLocation(id,group,name);}
+  async deleteGroup(id:string,group:number){return this.deleteLocation(id,group);}
+  async savePrintTemplate(id:string,scope:string,template:PrintTemplate,asset?:Asset) {
+    validateTemplate(template);
+    requireValue(scope==='all'||scope==='none'||/^[1-9][0-9]*$/.test(scope),'Неизвестная группа шаблона.');
+    const tx=this.db.transaction(['games','media'],'readwrite'),done=tx.done;done.catch(()=>{});
+    try{
+      const game:Game=await tx.objectStore('games').get(id);requireValue(game,'Проект не найден.');
+      if(asset){requireValue(asset.path===template.imagePath,'Файл не соответствует шаблону.');await tx.objectStore('media').put({...asset,projectId:id});}
+      requireValue(await tx.objectStore('media').get([id,template.imagePath]),'Файл шаблона не найден.');
+      game.printTemplates={...game.printTemplates,[scope]:structuredClone(template)};game.modified=now();
+      await tx.objectStore('games').put(game);await done;return game;
+    }catch(error){try{tx.abort();}catch{}await done.catch(()=>{});throw error;}
+  }
+  async cacheSnapshot(game:Game,assets:Asset[]=[]) {
+    const tx=this.db.transaction(['games','media'],'readwrite');await tx.objectStore('games').put(game);
+    for(const asset of assets)await tx.objectStore('media').put({...asset,projectId:game.id});await tx.done;
+  }
+  async allMedia(id:string):Promise<Asset[]> {return this.db.getAllFromIndex('media','projectId',id);}
   async saveRecord(id: string, draft: Draft, assets: Asset[]=[]): Promise<Material> {
     const recordTitle=title(draft.title);
     const tx=this.db.transaction(['games','media'],'readwrite'),done=tx.done;done.catch(()=>{});
     try {
       const game: Game=await tx.objectStore('games').get(id);requireValue(game,'Проект не найден.');
-      requireValue(draft.location_id===null || game.locations.some(l=>l.id===draft.location_id),'Выбранная локация удалена. Выберите другую.');
+      requireValue(draft.location_id===null || game.locations.some(l=>l.id===draft.location_id),'Выбранная группа удалена. Выберите другую.');
       for (const asset of assets) {
         mediaPath(asset.path);
         await tx.objectStore('media').put({...asset,projectId:id});
@@ -152,3 +173,5 @@ export class Storage {
     await tx.done;
   }
 }
+
+export type WorkshopStorage=Pick<Storage,keyof Storage>;

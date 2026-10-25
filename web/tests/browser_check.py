@@ -1,4 +1,4 @@
-"""End-to-end acceptance checks against a built site (no UI mocks).
+"""End-to-end UI checks against a built site with offline backend transport.
 
 Run with the environment's Python containing Playwright and a running static
 server. LARP_WEB_URL defaults to the internal test server. Never publish it.
@@ -14,6 +14,7 @@ import zlib
 import zipfile
 
 from playwright.sync_api import sync_playwright, expect
+from backend_fixture import BackendFixture
 
 ROOT = Path(__file__).resolve().parents[2]
 ARTIFACTS = Path(os.environ.get('LARP_WEB_ARTIFACTS', '/workspace/larp-artifacts/web-tests'))
@@ -39,23 +40,26 @@ def png():
 
 with sync_playwright() as p:
     browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH') or shutil.which('chromium'), headless=True, args=['--no-sandbox'])
+    backend = BackendFixture()
     context = browser.new_context(viewport={'width': 1440, 'height': 1000}, accept_downloads=True)
+    backend.install(context)
     page = context.new_page()
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))
     page.goto(URL)
     page.wait_for_load_state('networkidle')
+    backend.login(page)
     page.get_by_role('button', name='Создать игровой проект', exact=True).click()
     page.locator('dialog [name=name]').fill('Игра для проверки обновлений')
     page.locator('dialog [name=description]').fill('Демонстрационный проект. Не игровые материалы.')
     page.get_by_role('button', name='Создать проект', exact=True).click()
     expect(page.locator('dialog')).to_have_count(0)
-    passed('Project created in real browser IndexedDB')
+    passed('Project created through authenticated cloud RPC and real IndexedDB cache')
 
-    page.locator('[data-page=locations]').click()
-    page.get_by_role('button', name='Добавить локацию').click()
+    page.locator('[data-page=groups]').click()
+    page.get_by_role('button', name='Добавить группу').click()
     page.locator('dialog [name=name]').fill('Библиотека')
-    page.get_by_role('button', name='Сохранить локацию').click()
+    page.get_by_role('button', name='Сохранить группу').click()
     page.locator('[data-page=materials]').click()
     page.locator('[data-action=new-record]').first.click()
     page.locator('#record-title').fill('Дневник смотрителя')
@@ -99,18 +103,18 @@ with sync_playwright() as p:
     expect(page.locator('#record-rows tr')).to_have_count(0)
     page.locator('#location-filter').select_option('all')
     page.screenshot(path=str(ARTIFACTS / 'web-workshop.png'), full_page=True)
-    passed('Search by code and location filtering')
+    passed('Search by code and group filtering')
 
     # An application update changes code files; IndexedDB must survive it.
     bundle = next(path for path in (ROOT / 'web/dist/assets').glob('index-*.js')
-                  if 'LARP Studio <span>0.2</span>' in path.read_text())
+                  if 'LARP Studio <span>0.3</span>' in path.read_text())
     original = bundle.read_text()
     index = ROOT / 'web/dist/index.html'
     original_index = index.read_text()
     updated_bundle = bundle.with_name(bundle.stem + '-update.js')
     try:
         # Vite deploys a new content-hashed script URL, so test a new URL too.
-        updated_bundle.write_text(original.replace('LARP Studio <span>0.2</span>', 'LARP Studio <span>0.2-update</span>'))
+        updated_bundle.write_text(original.replace('LARP Studio <span>0.3</span>', 'LARP Studio <span>0.3-update</span>'))
         index.write_text(original_index.replace(bundle.name, updated_bundle.name))
         os.utime(index, (time.time() + 2, time.time() + 2))
         session = context.new_cdp_session(page)
@@ -119,7 +123,7 @@ with sync_playwright() as p:
         page.set_extra_http_headers({'Cache-Control': 'no-cache'})
         page.reload()
         page.wait_for_load_state('networkidle')
-        expect(page.locator('.version')).to_contain_text('0.2-update')
+        expect(page.locator('.version')).to_contain_text('0.3-update')
         expect(page.locator('.code-pill')).to_have_text(code)
         expect(page.locator('.record-title')).to_have_text('Дневник — новая редакция')
     finally:
@@ -140,8 +144,17 @@ with sync_playwright() as p:
     passed('Real XLSX and PDF downloads produced')
 
     page.locator('[data-page=builds]').click()
-    with page.expect_download() as event:
-        page.locator('.page-actions [data-action=package]').click()
+    try:
+        with page.expect_download() as event:
+            page.locator('.page-actions [data-action=package]').click()
+    except Exception:
+        print('Package failure status:', page.locator('#toast').inner_text(), flush=True)
+        print('Browser errors:', errors, flush=True)
+        import hashlib
+        print('Media hashes:', [(key, hashlib.sha256(value[0]).hexdigest(),len(value[0])) for key,value in backend.media.items()], flush=True)
+        print('Original hash:',hashlib.sha256(png().read_bytes()).hexdigest(),flush=True)
+        page.screenshot(path=str(ARTIFACTS/'package-failure.png'),full_page=True)
+        raise
     event.value.save_as(ARTIFACTS / 'game.rpgpack')
     with zipfile.ZipFile(ARTIFACTS / 'game.rpgpack') as archive:
         manifest = json.loads(archive.read('manifest.json'))
@@ -151,9 +164,12 @@ with sync_playwright() as p:
     passed('Portable versioned package contains correct code and ordered media')
 
     other = browser.new_context(viewport={'width': 1280, 'height': 900}, accept_downloads=True)
+    backend.install(other)
     imported = other.new_page()
+    imported.on('pageerror', lambda error: errors.append(str(error)))
     imported.goto(URL)
     imported.wait_for_load_state('networkidle')
+    backend.login(imported, email='master@example.test')
     with imported.expect_file_chooser() as chooser:
         imported.locator('[data-action=import]').click()
     chooser.value.set_files(ARTIFACTS / 'game.rpgpack')
@@ -167,12 +183,17 @@ with sync_playwright() as p:
     passed('Import into fresh browser/device restores project and real image bytes')
 
     mobile = browser.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True)
+    backend.install(mobile)
     small = mobile.new_page()
+    small.on('pageerror', lambda error: errors.append(str(error)))
     small.goto(URL)
     small.wait_for_load_state('networkidle')
+    backend.login(small)
     assert small.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Horizontal page overflow'
     small.screenshot(path=str(ARTIFACTS / 'web-mobile.png'), full_page=True)
     passed('Narrow browser viewport remains usable without horizontal page overflow')
+    assert backend.unhandled == [], backend.unhandled
+    assert backend.auth_mail_requests == [], backend.auth_mail_requests
     assert errors == [], errors
     passed('No uncaught browser JavaScript errors')
     (ARTIFACTS / 'results.json').write_text(json.dumps({'passed': len(checks), 'checks': checks, 'browser_errors': errors}, ensure_ascii=False, indent=2))

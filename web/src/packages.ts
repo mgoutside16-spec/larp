@@ -1,5 +1,5 @@
 import { zip, unzip, strToU8, strFromU8, type Zippable } from 'fflate';
-import { Storage } from './storage';
+import { type WorkshopStorage } from './storage';
 import { type Asset, type Game, type Manifest, KINDS, mediaPath, now, requireValue, sha256 } from './types';
 
 const MAX_TOTAL=1024**3,MAX_FILE=512*1024**2;
@@ -86,7 +86,7 @@ export function mime(path: string) {
   return ({png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',bmp:'image/bmp',mp3:'audio/mpeg',wav:'audio/wav',ogg:'audio/ogg',m4a:'audio/mp4',flac:'audio/flac',mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime'} as Record<string,string>)[ext||''] || 'application/octet-stream';
 }
 
-export async function makePackage(store: Storage,id: string): Promise<Uint8Array> {
+export async function makePackage(store: WorkshopStorage,id: string): Promise<Uint8Array> {
   const game=await store.game(id);
   requireValue(game.version<Number.MAX_SAFE_INTEGER,'Диапазон версий исчерпан. Создайте копию игры.');
   const files:Zippable={},checksums:Record<string,string>={};let total=0;
@@ -115,7 +115,7 @@ export async function makePackage(store: Storage,id: string): Promise<Uint8Array
   return bytes;
 }
 
-export async function importPackage(store: Storage,bytes:Uint8Array):Promise<Game> {
+export async function importPackage(store: WorkshopStorage,bytes:Uint8Array):Promise<Game> {
   const {manifest:m,assets}=await readPackage(bytes),id=crypto.randomUUID();
   const game:Game={id,packageId:m.game.id,name:m.game.name,description:m.game.description,created:now(),modified:now(),version:m.version,
     locations:m.locations,records:m.records.map(r=>({...r,revision:1})),reserved_codes:m.reserved_codes,

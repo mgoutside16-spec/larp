@@ -53,3 +53,28 @@ returns HTTP 200. Real published assets passed create/save/reload and downloads
 for XLSX/PDF/.rpgpack in a fresh browser context; no JS errors/failed requests.
 TLS verification preserved via system-trusted urllib transport for cloud browser
 requests (its private trust store lacks the environment proxy CA).
+
+
+## Accounts and shared browser workshop — version 0.3
+
+User paused Android work. Confirmed Supabase schema/update and Site URL setup.
+Preapproved administrator mgoutside16@gmail.com requires verified email.
+Account login/cabinet, global admin/master roles, project sharing with pending
+invites, server RLS/CAS, private media, project-specific groups and saved image
+printing implemented. Original local database preserved for explicit admin import.
+Sidebar contains supplied «Без правил» emblem; example card rasterized directly
+from supplied PDF. Export: per-code PNG ZIP, source resolution, 300 dpi.
+
+Independent read-only review: isolated proposal database prevents shared-cache
+refresh from losing a saved edit; busy print export survives background polling;
+long codes fit large font, registration name retained, group errors localized.
+Each reproduced before fixing. Also covered revoked/deleted selected project.
+Final checks: 26 Node tests, 158 real PostgreSQL assertions, browser suites
+10 acceptance / 2 editor regressions / 8 account scenarios / 5 review regressions.
+Multipart browser fixture now receives actual File/Blob bytes over loopback HTTP:
+Chromium intercepted postData omitted file-backed data; checksum export correctly
+rejected those empty test uploads. Production SDK/upload code unchanged.
+Real backend denies anonymous table/identity RPC access (401/42501). No actual
+user password or auth email used in tests; owner completes registration himself.
+Updated reusable cloud setup/start instructions saved to configuration draft.
+Publication of final source is verified separately below.

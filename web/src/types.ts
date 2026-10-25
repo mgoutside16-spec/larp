@@ -10,6 +10,7 @@ export interface Game {
   id: string; packageId: string; name: string; description: string;
   created: string; modified: string; version: number; records: Material[];
   locations: Location[]; reserved_codes: string[]; builds: Build[];
+  printTemplates?: Record<string,import('./print-layout').PrintTemplate>;
 }
 export interface Asset { projectId?: string; path: string; blob: Blob; name: string; mime: string }
 export interface Draft { id?: string; title: string; location_id: number | null; blocks: Block[]; revision?: number }
