@@ -172,3 +172,16 @@ verified and stable RSA3072 certificateunchanged. Actual replacement installed,
 offline startup and correct supplied emblem visualconfirmed. Dist consumer APK
 nowcorrectlyreplacedbaseline. Synthetic SAF/photo/state smoke ongoing. Source
 compatibilitycommit62c3072 pushed; no more Dart/Flutter source changes pending.
+
+
+Final native signed-artifact smoke complete (player-manual-summary.txt): offline
+SAFv1/v2, text/PNG/WAV/H264, counter2/1/lock, coldrestartpersistentlock, V2keepslock
+andhistoryopensV2. Source51 unit + native2 + 39web + old158/new34 SQL +3concurrency
+GREEN. FinalAndroidCI40210537419 success. Pages40211488851 success; siteHTTPSlogin
+verified without sendingmail/accounts. Uploaded APK viaActions40211679271 after
+hostuploaduploads.github.com401; separate release-artifacts/v0.4.0 branchcontains
+ONLYsignedAPK+SHA(no key). PublicReleasev0.4.0, directlatestdownloadHTTP200 and
+full61,465,859byteSHA matches7e2198...23209. mainFFintegrated; no sourceforkpending.
+Stable signingbackupzip prepared under private artifacts (neverpublic/Git).
+No known blocker remains. Differentialdownloads and unreferencedversioncleanup
+remain documentedoptional/deferred work; physicaldevicesound/iOSunverified.

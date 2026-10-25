@@ -87,3 +87,16 @@ within the same checkout. Do not run `flutter test`, `flutter analyze`,
 `flutter pub get`, or another build concurrently with a release build. In
 particular, debug tooling can otherwise rewrite the shared Android registrant
 with a development-only integration-test plugin during release compilation.
+
+
+## Публикация готового подписанного APK
+
+Публичная поставка: GitHub Release asset `LARP-Player.apk`. Прямой upload из
+облачного gh получил HTTP401 для uploads.github.com при рабочем API-доступе.
+Обход: поместить уже подписанный APK и его .sha256 в отдельную ветку
+`release-artifacts/vVERSION` (не в main; без ключей/паролей). Запустить
+`.github/workflows/publish-player.yml` с artifact_ref, release_tag существующего
+черновика и точным SHA256. Workflow проверяет байты и загружает их в черновик
+с временным GitHub Actions token. Затем `gh release edit TAG --draft=false --latest`.
+Это не заменяет native/signature проверки и не требует передачи приватного ключа
+в GitHub. Первый публичный upload run40211679271 прошёл успешно.
