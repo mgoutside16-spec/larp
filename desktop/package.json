@@ -68,5 +68,8 @@
         "to": "ffmpeg.LICENSE.txt"
       }
     ]
+  },
+  "dependencies": {
+    "isomorphic-git": "^1.44.13"
   }
 }

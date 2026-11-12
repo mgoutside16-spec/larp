@@ -1,9 +1,12 @@
 name: Publish site and games
 # Сайт (страница скачивания приложения, веб-игрок для iPhone) и опубликованные игры.
-# Игры мастерская кладёт в ветку `games`; каждая публикация пересобирает сайт целиком.
+# Игры мастерская кладёт в ветку `games` и запускает сборку событием repository_dispatch.
 on:
   push:
-    branches: [main, games]
+    branches: [main]
+  # Мастерская после публикации отправляет событие publish (нужен только доступ Contents).
+  repository_dispatch:
+    types: [publish]
   workflow_dispatch:
 permissions:
   contents: read

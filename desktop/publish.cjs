@@ -1,6 +1,9 @@
 // Публикация игр для игроков: файлы кладутся в ветку `games` репозитория на GitHub,
 // после чего GitHub Actions выкладывает их на GitHub Pages вместе с сайтом.
 const crypto = require('node:crypto');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 const OWNER = 'mgoutside16-spec';
 const REPO = 'larp';
@@ -8,7 +11,49 @@ const BRANCH = 'games';
 const API = process.env.LARP_TEST_GITHUB_API || 'https://api.github.com';
 const SITE = process.env.LARP_TEST_SITE || `https://${OWNER}.github.io/${REPO}/`;
 
+const GIT_URL = process.env.LARP_TEST_GIT_URL || `https://github.com/${OWNER}/${REPO}.git`;
+// Через API GitHub крупные файлы не проходят, поэтому их отправляем обычным git push
+// во временную ветку, а затем ссылаемся на уже загруженные файлы.
+const BIG_FILE = 10 * 1024 * 1024;
+
 class PublishError extends Error {}
+
+async function pushLargeFiles(token, list, onProgress) {
+  const git = require('isomorphic-git');
+  const http = require('isomorphic-git/http/node');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mir-snov-git-'));
+  try {
+    await git.init({fs, dir});
+    const entries = [];
+    for (const [index, bytes] of list.entries()) {
+      const oid = await git.writeBlob({fs, dir, blob: bytes});
+      entries.push({mode: '100644', path: `file-${String(index).padStart(5, '0')}`, oid, type: 'blob'});
+    }
+    const tree = await git.writeTree({fs, dir, tree: entries});
+    const who = {name: 'Mir Snov', email: 'noreply@users.noreply.github.com', timestamp: Math.floor(Date.now() / 1000), timezoneOffset: 0};
+    const commit = await git.writeCommit({fs, dir, commit: {message: 'Временная загрузка материалов', tree, parent: [], author: who, committer: who}});
+    const ref = `refs/heads/upload-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+    await git.writeRef({fs, dir, ref, value: commit, force: true});
+    let result;
+    try {
+      result = await git.push({
+        fs, http, dir, url: GIT_URL, ref, remoteRef: ref, force: true,
+        onAuth: () => ({username: 'x-access-token', password: token}),
+        onAuthFailure: () => ({cancel: true}),
+        onProgress: (p) => {
+          if (p.total) onProgress({stage: `Отправляем крупные видео на GitHub… ${Math.round((p.loaded / p.total) * 100)}%`, percent: (p.loaded / p.total) * 60});
+        },
+      });
+    } catch (error) {
+      if (/401|403|auth/i.test(String(error && error.message))) throw new PublishError('GitHub не принял ключ при отправке файлов. Подключите GitHub заново.');
+      throw new PublishError('Не удалось отправить крупные файлы на GitHub. Проверьте интернет и повторите.');
+    }
+    if (result && result.ok === false) throw new PublishError('GitHub отклонил отправку крупных файлов. Повторите позже.');
+    return ref.replace('refs/heads/', '');
+  } finally {
+    fs.rmSync(dir, {recursive: true, force: true});
+  }
+}
 
 async function gh(token, method, path, body) {
   let response;
@@ -98,6 +143,14 @@ async function publish(token, pub, onProgress = () => {}) {
     return sha;
   };
 
+  // Крупные новые файлы — одним git push во временную ветку.
+  const large = pub.files.map((f) => Buffer.from(f.bytes)).filter((b) => b.length > BIG_FILE && !knownShas.has(gitBlobSha(b)));
+  let tempBranch = null;
+  if (large.length) {
+    tempBranch = await pushLargeFiles(token, large, onProgress);
+    for (const b of large) knownShas.add(gitBlobSha(b));
+  }
+
   const total = pub.files.reduce((sum, f) => sum + f.bytes.byteLength, 0) || 1;
   let done = 0;
   const files = [];
@@ -125,6 +178,11 @@ async function publish(token, pub, onProgress = () => {}) {
   });
   if (ref) await gh(token, 'PATCH', `/repos/${OWNER}/${REPO}/git/refs/heads/${BRANCH}`, {sha: commit.sha, force: true});
   else await gh(token, 'POST', `/repos/${OWNER}/${REPO}/git/refs`, {ref: `refs/heads/${BRANCH}`, sha: commit.sha});
+  // Запускаем сборку сайта (workflow pages.yml) — push в ветку games её не запускает.
+  await gh(token, 'POST', `/repos/${OWNER}/${REPO}/dispatches`, {event_type: 'publish', client_payload: {game: id, version: pub.version}});
+  if (tempBranch) {
+    try { await gh(token, 'DELETE', `/repos/${OWNER}/${REPO}/git/refs/heads/${tempBranch}`); } catch { /* временная ветка не мешает */ }
+  }
   onProgress({stage: 'Файлы отправлены. GitHub выкладывает их на сайт…', percent: 95});
   return {version: pub.version, updatedAt};
 }
