@@ -1,0 +1,28 @@
+
+> larp-studio-web@0.5.1 build
+> tsc --noEmit && vite build
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 318 modules transformed.
+rendering chunks...
+[plugin vite:reporter] 
+(!) /workspace/larp/web/node_modules/fflate/esm/browser.js is dynamically imported by /workspace/larp/web/src/template-panel.ts but also statically imported by /workspace/larp/web/node_modules/jspdf/dist/jspdf.es.min.js, /workspace/larp/web/src/packages.ts, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/index.html                             0.81 kB │ gzip:   0.48 kB
+dist/assets/DejaVuSans-CmhfEOKb.ttf       759.72 kB
+dist/assets/index-DuvxlohC.css             32.90 kB │ gzip:   8.04 kB
+dist/assets/_commonjsHelpers-Cpj98o6Y.js    0.24 kB │ gzip:   0.18 kB
+dist/assets/purify.es-18JuyMri.js          30.12 kB │ gzip:  11.51 kB
+dist/assets/index.es-C0ZdBcQ9.js          159.01 kB │ gzip:  53.09 kB
+dist/assets/html2canvas.esm-DXEQVQnt.js   201.04 kB │ gzip:  47.43 kB
+dist/assets/index--dusHQTK.js             374.49 kB │ gzip: 109.58 kB
+dist/assets/jspdf.es.min-0-KLcM5I.js      379.64 kB │ gzip: 123.09 kB
+dist/assets/exceljs.min-CENqG6hm.js       936.99 kB │ gzip: 270.75 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 5.52s

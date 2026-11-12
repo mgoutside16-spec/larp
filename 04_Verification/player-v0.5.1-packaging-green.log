@@ -1,0 +1,5 @@
+LARP-Player.apk: 62317599 bytes; package: name='ru.bezpravil.larp_player' versionCode='6' versionName='0.5.1' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'; ABIs ['arm64-v8a', 'armeabi-v7a', 'x86_64']
+LARP-Player-arm64.apk: 22159460 bytes; package: name='ru.bezpravil.larp_player' versionCode='6' versionName='0.5.1' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'; ABIs ['arm64-v8a']
+LARP-Player-arm32.apk: 20119486 bytes; package: name='ru.bezpravil.larp_player' versionCode='6' versionName='0.5.1' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'; ABIs ['armeabi-v7a']
+LARP-Player-x86_64.apk: 23716459 bytes; package: name='ru.bezpravil.larp_player' versionCode='6' versionName='0.5.1' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'; ABIs ['x86_64']
+PASS: all four signed 0.5.1+6 APKs, ABIs, sizes, and checksums verified.

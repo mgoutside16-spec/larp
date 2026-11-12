@@ -1,0 +1,449 @@
+421ed0636c9aa65518aeb088480bc565577a101e
+2026-10-25T18:24:28Z
+docs: record published compact player and video transfer checks [skip ci]
+
+
+M	TESTING.md
+05e44ca84e610f05f4e63c632c5cc416e9580892
+2026-10-25T18:15:48Z
+fix: show video transfer progress and ship compact Android downloads with QR
+
+
+M	.github/workflows/pages.yml
+M	.github/workflows/publish-player.yml
+M	CHANGELOG.md
+M	README.md
+M	SPEC.md
+M	TESTING.md
+M	mobile/README.md
+M	mobile/android/gradle.properties
+M	mobile/pubspec.yaml
+M	scripts/build-player-apk.sh
+M	web/package-lock.json
+M	web/package.json
+A	web/public/player/index.html
+A	web/public/player/qr-download.png
+A	web/public/player/qr-download.svg
+M	web/src/auth.ts
+M	web/src/cloud-storage.ts
+M	web/src/main.ts
+M	web/src/storage.ts
+M	web/src/style.css
+A	web/src/transfers.ts
+M	web/tests/backend_fixture.py
+M	web/tests/browser_check.py
+M	web/tests/cloud-storage.test.ts
+M	web/tests/player_publication_check.py
+A	web/tests/transfers.test.ts
+A	web/tests/video_upload_check.py
+8ecc82d98a6a1273b68a3682f9578847b8088c70
+2026-10-25T17:38:05Z
+docs: record verified player update and actual Supabase downloads [skip ci]
+
+
+M	TESTING.md
+38dcf812682748075858f10b131d2742b285fc68
+2026-10-25T17:31:42Z
+fix: permit only referenced public player files without request-context assumptions
+
+
+M	.github/workflows/pages.yml
+M	backend/PLAYER-UPDATES.md
+M	backend/player-auto-sync.sql
+A	backend/player-public-downloads.sql
+M	backend/test-player-auto-sync.sql
+A	backend/test-player-public-downloads.sql
+M	docs/superpowers/specs/2026-10-25-player-auto-sync.md
+adb185a83d0ada23292b444098d35163abb24f13
+2026-10-25T17:27:00Z
+fix: match mobile URI encoding for legacy media names
+
+
+M	backend/player-auto-sync.sql
+M	backend/player-download-access.sql
+M	backend/test-player-download-access.sql
+98bc557e651ca689f5ea8f850f4a2a9dcf7e62d1
+2026-10-25T17:26:24Z
+fix: authorize player file downloads through verified Storage GET context
+
+
+M	.github/workflows/pages.yml
+M	backend/PLAYER-UPDATES.md
+M	backend/player-auto-sync.sql
+A	backend/player-download-access.sql
+A	backend/test-player-download-access.sql
+5f494cc818ddfe17a305f62703b9206a02127d7a
+2026-10-25T17:16:17Z
+fix: ignore video notifications while closing player routes
+
+
+M	TESTING.md
+M	mobile/lib/ui/record_reader.dart
+4e26b19f7a1365d4cd6821730333a7a9b757f17d
+2026-10-25T17:07:32Z
+feat: automatically sync player games and register characters
+
+
+M	.github/workflows/pages.yml
+M	CHANGELOG.md
+M	README.md
+M	SPEC.md
+M	backend/PLAYER-UPDATES.md
+M	mobile/README.md
+M	mobile/integration_test/player_smoke_test.dart
+M	mobile/lib/core/models.dart
+M	mobile/lib/core/player_store.dart
+M	mobile/lib/core/update_client.dart
+M	mobile/lib/ui/player_app.dart
+M	mobile/pubspec.yaml
+A	mobile/test/core/profile_store_test.dart
+A	mobile/test/online/auto_sync_test.dart
+M	mobile/test/ui/player_app_test.dart
+M	web/package-lock.json
+M	web/package.json
+M	web/src/cabinet.ts
+M	web/src/cloud-storage.ts
+M	web/src/main.ts
+M	web/src/packages.ts
+M	web/src/storage.ts
+M	web/tests/backend_fixture.py
+M	web/tests/browser_check.py
+A	web/tests/player-auto-sync.test.ts
+M	web/tests/player-publication.test.ts
+A	web/tests/player_auto_sync_check.py
+2648bbbbaf11b93775c283576d504a687fb492f1
+2026-10-25T17:04:53Z
+feat: add automatic player sources and project participants
+
+
+A	backend/player-auto-sync.sql
+A	backend/test-player-auto-migration.py
+A	backend/test-player-auto-sync.sql
+A	docs/superpowers/specs/2026-10-25-player-auto-sync.md
+dab1296c7477aa32fcaa5c0ee9cc4cfcf8be86f0
+2026-10-25T16:33:19Z
+docs: record verified Android release and public downloads [skip ci]
+
+
+M	TESTING.md
+M	docs/ANDROID_SETUP.md
+M	docs/PROGRESS.md
+M	docs/superpowers/plans/2026-10-25-player.md
+1183c0614662b5cb8f2de4c562f27a07f5ac1b33
+2026-10-25T16:24:02Z
+ci: upload verified signed player through GitHub Actions
+
+
+A	.github/workflows/publish-player.yml
+bd7ba1e5c7c30dbd974e8fab63bd1caccc2a43e8
+2026-10-25T16:17:40Z
+docs: record native Android checks and signed player build
+
+
+M	TESTING.md
+M	docs/PROGRESS.md
+M	docs/superpowers/plans/2026-10-25-player.md
+62c30725b92c0ead34659d79148aa78ce8f91cc6
+2026-10-25T16:12:00Z
+fix: decode PNG reliably on Android and retain raw image buffers
+
+
+M	CHANGELOG.md
+M	docs/PROGRESS.md
+M	mobile/README.md
+A	mobile/assets/licenses/image-MIT.txt
+M	mobile/integration_test/media_fixture.dart
+M	mobile/integration_test/player_smoke_test.dart
+M	mobile/lib/ui/player_app.dart
+A	mobile/lib/ui/player_image.dart
+M	mobile/lib/ui/record_reader.dart
+A	mobile/lib/vendor/software_png_decoder.dart
+M	mobile/pubspec.lock
+M	mobile/pubspec.yaml
+A	mobile/test/ui/player_image_test.dart
+25a8f90e3fe135f0f8e0612af737349c0786ed54
+2026-10-25T15:16:28Z
+feat: ship offline Android player with online and file updates
+
+
+A	.github/workflows/player.yml
+M	CHANGELOG.md
+M	README.md
+M	TESTING.md
+A	docs/ANDROID_SETUP.md
+M	docs/PROGRESS.md
+M	docs/superpowers/plans/2026-10-25-player.md
+A	mobile/.gitignore
+A	mobile/.metadata
+A	mobile/README.md
+A	mobile/analysis_options.yaml
+A	mobile/android/.gitignore
+A	mobile/android/app/build.gradle.kts
+A	mobile/android/app/src/debug/AndroidManifest.xml
+A	mobile/android/app/src/main/AndroidManifest.xml
+A	mobile/android/app/src/main/kotlin/ru/bezpravil/larp_player/MainActivity.kt
+A	mobile/android/app/src/main/res/drawable-nodpi/bez_pravil.png
+A	mobile/android/app/src/main/res/drawable-v21/launch_background.xml
+A	mobile/android/app/src/main/res/drawable/launch_background.xml
+A	mobile/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+A	mobile/android/app/src/main/res/mipmap-anydpi/ic_launcher.xml
+A	mobile/android/app/src/main/res/values-night/styles.xml
+A	mobile/android/app/src/main/res/values/launcher_colors.xml
+A	mobile/android/app/src/main/res/values/styles.xml
+A	mobile/android/app/src/profile/AndroidManifest.xml
+A	mobile/android/build.gradle.kts
+A	mobile/android/gradle.properties
+A	mobile/android/gradle/wrapper/gradle-wrapper.properties
+A	mobile/android/settings.gradle.kts
+A	mobile/assets/bez-pravil.png
+A	mobile/assets/config.json
+A	mobile/integration_test/media_fixture.dart
+A	mobile/integration_test/player_smoke_test.dart
+A	mobile/ios/.gitignore
+A	mobile/ios/Flutter/AppFrameworkInfo.plist
+A	mobile/ios/Flutter/Debug.xcconfig
+A	mobile/ios/Flutter/Release.xcconfig
+A	mobile/ios/Runner.xcodeproj/project.pbxproj
+A	mobile/ios/Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+A	mobile/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+A	mobile/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+A	mobile/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme
+A	mobile/ios/Runner.xcworkspace/contents.xcworkspacedata
+A	mobile/ios/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+A	mobile/ios/Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+A	mobile/ios/Runner/AppDelegate.swift
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png
+A	mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png
+A	mobile/ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json
+A	mobile/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png
+A	mobile/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png
+A	mobile/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png
+A	mobile/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md
+A	mobile/ios/Runner/Base.lproj/LaunchScreen.storyboard
+A	mobile/ios/Runner/Base.lproj/Main.storyboard
+A	mobile/ios/Runner/Info.plist
+A	mobile/ios/Runner/Runner-Bridging-Header.h
+A	mobile/ios/Runner/SceneDelegate.swift
+A	mobile/ios/RunnerTests/RunnerTests.swift
+A	mobile/lib/core/models.dart
+A	mobile/lib/core/package_reader.dart
+A	mobile/lib/core/player_store.dart
+A	mobile/lib/core/update_client.dart
+A	mobile/lib/main.dart
+A	mobile/lib/ui/player_app.dart
+A	mobile/lib/ui/record_reader.dart
+A	mobile/pubspec.lock
+A	mobile/pubspec.yaml
+A	mobile/test/core/fixtures/descriptor.rpgpack
+A	mobile/test/core/fixtures/desktop.rpgpack
+A	mobile/test/core/fixtures/generate_desktop.py
+A	mobile/test/core/fixtures/generate_web.mts
+A	mobile/test/core/fixtures/generate_zip_variants.py
+A	mobile/test/core/fixtures/web.rpgpack
+A	mobile/test/core/fixtures/zip64.rpgpack
+A	mobile/test/core/history_media_test.dart
+A	mobile/test/core/package_helper.dart
+A	mobile/test/core/package_reader_test.dart
+A	mobile/test/core/player_store_test.dart
+A	mobile/test/online/reference_test.dart
+A	mobile/test/online/update_client_test.dart
+A	mobile/test/ui/player_app_test.dart
+A	mobile/test/ui/reader_sanitizer_test.dart
+A	scripts/build-player-apk.sh
+A	scripts/mobile-env.sh
+A	scripts/setup-mobile-toolchain.sh
+A	scripts/start-android-runtime.sh
+M	web/package-lock.json
+M	web/package.json
+M	web/src/main.ts
+M	web/tests/browser_check.py
+1126ae5567fd98994c4595363650dcd549dd7170
+2026-10-25T15:09:12Z
+feat: publish immutable player updates from workshop
+
+
+M	.github/workflows/pages.yml
+M	SPEC.md
+A	backend/PLAYER-UPDATES.md
+A	backend/player-updates.sql
+M	backend/test-bootstrap.sql
+A	backend/test-player-concurrency.py
+A	backend/test-player-updates.sql
+A	docs/superpowers/plans/2026-10-25-player.md
+A	docs/superpowers/specs/2026-10-25-player-design.md
+M	web/src/cloud-storage.ts
+M	web/src/main.ts
+A	web/src/player-publication.ts
+M	web/src/style.css
+M	web/tests/backend_fixture.py
+A	web/tests/player-publication.test.ts
+A	web/tests/player_publication_check.py
+95345596c383bc784abbd7bfa3d2b4590c604b87
+2026-10-25T14:28:31Z
+docs: record verified account workshop deployment [skip ci]
+
+
+M	TESTING.md
+M	docs/PROGRESS.md
+0c45794005c3216b5c9ad2c4549a24385d2f7e7b
+2026-10-25T14:25:04Z
+feat: add account workshop, shared projects and image card printing
+
+
+M	.github/workflows/pages.yml
+M	CHANGELOG.md
+M	README.md
+M	SPEC.md
+M	TESTING.md
+A	docs/ACCOUNT-WORKSHOP-DESIGN.md
+A	docs/ACCOUNT-WORKSHOP-PLAN.md
+M	docs/PROGRESS.md
+M	docs/WEB-DESIGN.md
+M	web/package-lock.json
+M	web/package.json
+A	web/public/brand/bez-pravil.png
+A	web/public/config.json
+A	web/public/templates/snovidenie.png
+A	web/src/account.css
+A	web/src/auth-config.ts
+A	web/src/auth.ts
+A	web/src/cabinet.ts
+A	web/src/cloud-storage.ts
+M	web/src/exports.ts
+M	web/src/icons.ts
+M	web/src/main.ts
+M	web/src/packages.ts
+A	web/src/print-layout.ts
+M	web/src/storage.ts
+A	web/src/template-panel.css
+A	web/src/template-panel.ts
+M	web/src/types.ts
+A	web/tests/account_check.py
+A	web/tests/auth-config.test.ts
+A	web/tests/backend_fixture.py
+M	web/tests/browser_check.py
+A	web/tests/cloud-deletion.test.ts
+A	web/tests/cloud-storage.test.ts
+M	web/tests/regression_check.py
+A	web/tests/review_regressions.py
+A	web/tests/template-panel.browser.py
+A	web/tests/template-panel.test.ts
+A	web/tests/templates.test.ts
+8e4a47d0d1dbe852959176cc105cad60b8dda7b3
+2026-10-25T14:05:23Z
+fix: permit safe media cleanup after project deletion
+
+
+A	backend/account-update.sql
+M	backend/schema.sql
+M	backend/test-policies.sql
+34c087d277309c2890cd05eed189e935d9fbad3c
+2026-10-25T13:50:48Z
+fix: allow owners to revoke pending project invitations
+
+
+A	backend/invite-management.sql
+M	backend/schema.sql
+M	backend/test-policies.sql
+2f86267904285ca36db15312aff09f9256c68cf7
+2026-10-25T13:35:18Z
+feat: secure shared projects with admin and master roles
+
+
+A	backend/first-admin.sql
+A	backend/schema.sql
+A	backend/test-bootstrap.sql
+A	backend/test-policies.sql
+4a39eb5010d585827f0ee199273397cef6fa85af
+2026-10-25T12:46:11Z
+docs: record live website and deployment checks [skip ci]
+
+
+M	README.md
+M	TESTING.md
+M	docs/PROGRESS.md
+d9b9a5d0389290eadce3084ac31f0e86ce6744f4
+2026-10-25T12:13:12Z
+ci: correct desktop settings context and record verified web checks
+
+
+M	.github/workflows/tests.yml
+M	.gitignore
+M	TESTING.md
+M	docs/PROGRESS.md
+6e813a84f3939664784ed9af436d537f5ba44317
+2026-10-25T12:09:35Z
+feat: deliver browser LARP Studio with persistent projects
+
+
+A	.github/workflows/pages.yml
+A	.github/workflows/tests.yml
+A	.gitignore
+A	CHANGELOG.md
+A	LARPStudio.spec
+A	README.md
+A	SPEC.md
+A	TESTING.md
+A	docs/DESKTOP.md
+A	docs/PROGRESS.md
+A	docs/RPGPACK.md
+A	docs/WEB-DESIGN.md
+A	docs/superpowers/plans/2026-10-25-workshop.md
+A	docs/superpowers/specs/2026-10-25-workshop-design.md
+A	launch.py
+A	pyproject.toml
+A	requirements-dev.txt
+A	requirements.txt
+A	src/larp_studio/__init__.py
+A	src/larp_studio/__main__.py
+A	src/larp_studio/assets/DejaVuSans.ttf
+A	src/larp_studio/assets/FONT-LICENSE.txt
+A	src/larp_studio/exports.py
+A	src/larp_studio/files.py
+A	src/larp_studio/packages.py
+A	src/larp_studio/project.py
+A	src/larp_studio/ui/__init__.py
+A	src/larp_studio/ui/editor.py
+A	src/larp_studio/ui/main_window.py
+A	src/larp_studio/ui/preview.py
+A	src/larp_studio/ui/richtext.py
+A	src/larp_studio/ui/theme.py
+A	tests/conftest.py
+A	tests/test_exports.py
+A	tests/test_packages.py
+A	tests/test_project.py
+A	tests/test_ui.py
+A	tests/test_workflow.py
+A	web/index.html
+A	web/package-lock.json
+A	web/package.json
+A	web/public/FONT-LICENSE.txt
+A	web/public/favicon.svg
+A	web/src/exports.ts
+A	web/src/icons.ts
+A	web/src/main.ts
+A	web/src/packages.ts
+A	web/src/richtext.ts
+A	web/src/storage.ts
+A	web/src/style.css
+A	web/src/types.ts
+A	web/tests/browser_check.py
+A	web/tests/packages.test.ts
+A	web/tests/regression_check.py
+A	web/tests/storage.test.ts
+A	web/tsconfig.json
+A	web/vite.config.ts

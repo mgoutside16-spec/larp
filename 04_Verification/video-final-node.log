@@ -1,0 +1,67 @@
+
+> larp-studio-web@0.5.1 test
+> node --import tsx --test tests/*.test.ts
+
+✔ only public connection keys can enter browser configuration (1.147467ms)
+✔ authentication failures explain next action in Russian (0.379251ms)
+✔ project deletion cleans referenced and unused media only after server success (43.978878ms)
+✔ stale project deletion never removes media (3.833439ms)
+✔ parallel edits of different records merge after a server revision conflict (75.490533ms)
+✔ parallel edit of the same record is rejected instead of losing a colleague edit (9.268089ms)
+✔ a concurrent cache refresh cannot turn a successful save into a lost edit (5.611565ms)
+✔ saving uploaded media caches its actual bytes without downloading them again on reopen (23.115649ms)
+✔ versioned package roundtrip preserves game identity, codes, media and order (22.850841ms)
+✔ tampered media is rejected without adding a project (4.582176ms)
+✔ unsafe Windows paths and duplicate case aliases are rejected (7.168729ms)
+✔ truncated and unsupported packages fail clearly (0.745552ms)
+✔ oversized manifest export fails without recording a successful backup (338.290972ms)
+✔ local player version follows the portable document version (22.542486ms)
+✔ portable cloud package advances beyond automatic player versions (43.042909ms)
+✔ portable cloud package also advances a newer document version (4.832874ms)
+✔ missing automatic sync migration preserves existing cloud export (1.665848ms)
+✔ invalid player version -1 fails before recording an export (2.093671ms)
+✔ invalid player version 1.5 fails before recording an export (1.713319ms)
+✔ invalid player version 17 fails before recording an export (2.068003ms)
+✔ invalid player version null fails before recording an export (2.621976ms)
+✔ invalid player version 9007199254740992 fails before recording an export (2.369786ms)
+✔ player list contains public character fields and no registration token (2.455225ms)
+✔ denied player list and version request never use cached private data (2.459101ms)
+✔ export still rejects a concurrent edit during player version lookup (2.155023ms)
+✔ publication rejects a response with invalid game_id (86.431789ms)
+✔ publication rejects a response with invalid name (10.21982ms)
+✔ publication rejects a response with invalid version (7.460418ms)
+✔ publication rejects a response with invalid sha256 (6.029193ms)
+✔ publication rejects a response with invalid size (6.659503ms)
+✔ publication rejects a response with invalid download_path (10.537279ms)
+✔ publication rejects a response with invalid created_at (5.037221ms)
+✔ publication uploads a real versioned archive and shares package UUID, not workshop project UUID (5.542832ms)
+✔ imported uppercase package UUID remains the same published game identity (9.465907ms)
+✔ publication reports migration in Russian and does not claim success (5.311715ms)
+✔ publication reports conflict in Russian and does not claim success (4.849539ms)
+✔ publication reports upload in Russian and does not claim success (7.456192ms)
+✔ publication reports changed in Russian and does not claim success (7.331303ms)
+✔ code allocation is automatic, unique, five-digit and reserves deleted codes (60.549958ms)
+✔ data and immutable codes survive closing and updating application connection (1.854691ms)
+✔ blocks and copied media persist, original file is no longer needed (3.216211ms)
+✔ invalid save rolls back metadata and media (1.469952ms)
+✔ parallel tabs cannot overwrite a newer edit (1.374329ms)
+✔ deleting a location preserves records; duplication is independent (2.011066ms)
+✔ code exhaustion is explicit (12.117076ms)
+✔ template selection prints only the selected group, including ungrouped records (7.370302ms)
+✔ ZIP generation refuses empty groups, over 500 cards and its memory budget without truncation (0.523187ms)
+✔ groups are project-specific; legacy groups and assigned codes survive updates (11.334829ms)
+✔ template and source image survive reopening and independent project copy (6.828156ms)
+✔ invalid template cannot replace the saved template (1.78065ms)
+✔ drag coordinates use actual canvas bounds and clamp to the image (0.775157ms)
+✔ PNG print metadata is 300 DPI, preserving original image data (0.415485ms)
+✔ workshop fetch bounds an unresponsive real HTTP request (110.983993ms)
+✔ workshop fetch preserves successful responses and caller abort signals (14.151998ms)
+✔ workshop fetch times out when headers arrive but the JSON body stalls (108.020119ms)
+ℹ tests 55
+ℹ suites 0
+ℹ pass 55
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1901.577103
