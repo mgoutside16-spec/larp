@@ -1,0 +1,72 @@
+{
+  "name": "larp-studio-desktop",
+  "productName": "Мир Снов для Граней",
+  "version": "1.1.0",
+  "description": "Мир Снов для Граней — мастерская для подготовки ролевых игр",
+  "author": "Без правил",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "45.3.1",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "ru.bezpravil.larpstudio",
+    "productName": "Мир Снов для Граней",
+    "copyright": "Без правил",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "publish.cjs",
+      "icon.png",
+      "web/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Мир Снов для Граней",
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "language": "1049",
+      "installerLanguages": [
+        "ru_RU"
+      ],
+      "artifactName": "LARP-Studio-Setup-${version}.exe"
+    },
+    "extraResources": [
+      {
+        "from": "bin/ffmpeg.exe",
+        "to": "ffmpeg.exe"
+      },
+      {
+        "from": "bin/ffmpeg.LICENSE",
+        "to": "ffmpeg.LICENSE.txt"
+      }
+    ]
+  }
+}

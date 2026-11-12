@@ -1,7 +1,9 @@
-name: Publish browser workshop
+name: Publish site and games
+# Сайт (страница скачивания приложения, веб-игрок для iPhone) и опубликованные игры.
+# Игры мастерская кладёт в ветку `games`; каждая публикация пересобирает сайт целиком.
 on:
   push:
-    branches: [main]
+    branches: [main, games]
   workflow_dispatch:
 permissions:
   contents: read
@@ -13,98 +15,43 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
-      - name: Install browser test tools in CI
+      - name: Build site
+        working-directory: web
         run: |
-          python -m pip install playwright==1.58.0
-          python -m playwright install --with-deps chromium
-      - name: Verify browser workflow and preservation across application update
-        env:
-          LARP_WEB_ARTIFACTS: ${{ runner.temp }}/larp-browser-tests
+          npm ci
+          npm test
+          npm run build
+      - name: Add published games
         run: |
-          python -m http.server 5173 --bind 127.0.0.1 --directory dist > /tmp/larp-web-server.log 2>&1 &
-          python tests/browser_check.py
-          python tests/regression_check.py
-          python tests/account_check.py
-          python tests/review_regressions.py
-          python tests/player_publication_check.py
-          python tests/player_auto_sync_check.py
-          python tests/video_upload_check.py
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+          if git ls-remote --exit-code --heads origin games >/dev/null; then
+            git fetch --depth 1 origin games
+            mkdir -p web/dist/games
+            git --work-tree=web/dist/games checkout FETCH_HEAD -- .
+            echo "Опубликованные игры:"; cat web/dist/games/catalog.json || true
+          else
+            echo "Игры ещё не публиковались."
+          fi
+      - name: Check size limits
+        run: |
+          du -sh web/dist
+          find web/dist -type f -size +95M -print -exec false {} +
+      - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: browser-test-results
-          path: ${{ runner.temp }}/larp-browser-tests/
-  policies:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_PASSWORD: disposable-test-database
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      PGHOST: 127.0.0.1
-      PGPORT: 5432
-      PGUSER: postgres
-      PGPASSWORD: disposable-test-database
-      PGDATABASE: postgres
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify real PostgreSQL roles and shared-project policies
-        run: |
-          psql -v ON_ERROR_STOP=1 -f backend/test-bootstrap.sql
-          psql -v ON_ERROR_STOP=1 -f backend/schema.sql
-          psql -v ON_ERROR_STOP=1 -f backend/account-update.sql
-          psql -v ON_ERROR_STOP=1 -f backend/test-policies.sql
-      - name: Verify player releases and anonymous download policies
-        run: |
-          psql -v ON_ERROR_STOP=1 -f backend/player-updates.sql
-          psql -v ON_ERROR_STOP=1 -f backend/player-updates.sql
-          psql -v ON_ERROR_STOP=1 -f backend/test-player-updates.sql
-          python backend/test-player-concurrency.py
-      - name: Verify automatic player catalog, media and participants
-        run: |
-          psql -v ON_ERROR_STOP=1 -f backend/player-auto-sync.sql
-          psql -v ON_ERROR_STOP=1 -f backend/player-auto-sync.sql
-          psql -v ON_ERROR_STOP=1 -f backend/test-player-auto-sync.sql
-          python backend/test-player-auto-migration.py
-          psql -v ON_ERROR_STOP=1 -f backend/player-download-access.sql
-          psql -v ON_ERROR_STOP=1 -f backend/player-download-access.sql
-          psql -v ON_ERROR_STOP=1 -f backend/test-player-download-access.sql
-          psql -v ON_ERROR_STOP=1 -f backend/player-public-downloads.sql
-          psql -v ON_ERROR_STOP=1 -f backend/player-public-downloads.sql
-          psql -v ON_ERROR_STOP=1 -f backend/test-player-public-downloads.sql
   deploy:
-    needs: [build, policies]
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages

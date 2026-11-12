@@ -81,15 +81,10 @@ class UpdateClient {
             !(_base.scheme == 'http' &&
                 ['127.0.0.1', 'localhost', '::1'].contains(_base.host))) ||
         _base.userInfo.isNotEmpty ||
-        !['', '/'].contains(_base.path) ||
+        (!_base.path.endsWith('/') && _base.path.isNotEmpty) ||
         _base.hasQuery ||
         _base.hasFragment) {
       throw const PlayerException('Некорректный адрес сервера обновлений.');
-    }
-    if (!_publicKey.startsWith('sb_publishable_')) {
-      throw const PlayerException(
-        'Для обновлений нужен публичный ключ мастерской.',
-      );
     }
     _client.connectionTimeout = const Duration(seconds: 15);
     _client.autoUncompress = false;
@@ -322,17 +317,46 @@ class UpdateClient {
     }
   }
 
+  // Игры публикуются мастерской как статические файлы (GitHub Pages):
+  // games/catalog.json, games/<id>/snapshot.json и games/<id>/media/<файл>.
+  Uri _static(String path) => _base.resolve(
+    '$path?t=${DateTime.now().millisecondsSinceEpoch}',
+  );
+
   Future<dynamic> _rpc(
     String name,
     Map<String, dynamic> body, {
     int limit = 32 * 1024 * 1024,
   }) async {
+    final String path;
+    switch (name) {
+      case 'get_player_catalog':
+        path = 'games/catalog.json';
+      case 'get_player_snapshot':
+        final id = body['p_game_id'];
+        if (id is! String || !_gameId.hasMatch(id)) _invalid();
+        path = 'games/$id/snapshot.json';
+      default:
+        throw const PlayerException('Неизвестный запрос к мастерской.');
+    }
     try {
-      final response = await _request('POST', '/rest/v1/rpc/$name', body: body);
+      _active();
+      final request = await _client
+          .getUrl(_static(path))
+          .timeout(const Duration(seconds: 20));
+      request.followRedirects = false;
+      request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
+      final response = await request.close().timeout(
+        const Duration(seconds: 30),
+      );
+      if (response.statusCode == 404) {
+        await response.drain<void>().timeout(const Duration(seconds: 10));
+        return name == 'get_player_catalog' ? <dynamic>[] : null;
+      }
       if (response.statusCode != 200) {
         await response.drain<void>().timeout(const Duration(seconds: 10));
         throw const PlayerException(
-          'Не удалось получить данные мастерской. Проверьте интернет; если ошибка повторяется, сообщите мастеру о настройке автоматической загрузки.',
+          'Не удалось получить игры мастерской. Проверьте интернет и повторите позже.',
         );
       }
       final bytes = <int>[];
@@ -373,7 +397,7 @@ class UpdateClient {
         'p_after': after,
         'p_limit': 100,
       });
-      if (raw is! List || raw.length > 100) _invalid();
+      if (raw is! List || raw.length > 5000) _invalid();
       for (final row in raw) {
         if (row is! Map<String, dynamic>) _invalid();
         final id = row['game_id'],
@@ -417,7 +441,7 @@ class UpdateClient {
         );
         after = id;
       }
-      if (raw.length < 100) return result;
+      return result;
     }
   }
 
@@ -516,9 +540,17 @@ class UpdateClient {
               .split('/')
               .map(Uri.encodeComponent)
               .join('/');
-          final response = await _request(
-            'GET',
-            '/storage/v1/object/workshop-media/$encodedPath',
+          _active();
+          final mediaRequest = await _client
+              .getUrl(_static('games/$encodedPath'))
+              .timeout(const Duration(seconds: 20));
+          mediaRequest.followRedirects = false;
+          mediaRequest.headers.set(
+            HttpHeaders.acceptEncodingHeader,
+            'identity',
+          );
+          final response = await mediaRequest.close().timeout(
+            const Duration(seconds: 30),
           );
           if (response.statusCode != 200) {
             await response.drain<void>().timeout(const Duration(seconds: 10));
@@ -604,22 +636,8 @@ class UpdateClient {
     }
   }
 
+  // Имена персонажей остаются на устройстве: сервера для их приёма больше нет.
   Future<void> registerProfile(PlayerProfile profile) async {
-    final raw = await _rpc('register_player', {
-      'p_game_id': profile.gameId,
-      'p_character_name': profile.characterName,
-      'p_token': profile.token,
-    }, limit: 65536);
-    if (raw is! Map ||
-        raw['character_name'] != profile.characterName ||
-        raw['participant_id'] is! String ||
-        !_gameId.hasMatch(raw['participant_id']) ||
-        raw['first_seen'] is! String ||
-        DateTime.tryParse(raw['first_seen']) == null ||
-        raw['last_seen'] is! String ||
-        DateTime.tryParse(raw['last_seen']) == null) {
-      _invalid();
-    }
     await _store.markPlayerRegistered(
       profile.gameId,
       profile.token,

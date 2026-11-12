@@ -286,7 +286,7 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
           try {
             await updates.registerProfile(profile);
           } catch (e) {
-            failure ??= 'Имя сохранено на устройстве. Отправим мастеру при появлении связи.';
+            failure ??= 'Имя сохранено на устройстве.';
           }
         }
       }

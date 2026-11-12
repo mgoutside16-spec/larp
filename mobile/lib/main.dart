@@ -21,8 +21,8 @@ Future<void> main() async {
       ) as Map<String, dynamic>;
       updates = UpdateClient(
         store,
-        config['supabaseUrl'] as String,
-        config['supabasePublishableKey'] as String,
+        config['gamesUrl'] as String,
+        '',
       );
     } catch (_) {
       // A missing online configuration must never prevent offline play.

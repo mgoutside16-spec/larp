@@ -80,36 +80,23 @@ void main() {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       requests.add(request.uri);
-      expect(request.headers.value('apikey'), 'sb_publishable_auto_test');
       expect(request.headers.value('accept-encoding'), 'identity');
       request.response.headers.contentType = ContentType.json;
-      if (request.uri.path == '/rest/v1/rpc/get_player_catalog') {
-        expect(request.method, 'POST');
-        final body = jsonDecode(
-          await utf8.decoder.bind(request).join(),
-        ) as Map<String, dynamic>;
-        catalogBodies.add(body);
-        final limit = (body['p_limit'] as int?) ?? 100;
-        expect(limit, inInclusiveRange(1, 200));
-        final after = body['p_after'] as String?;
-        final rows = catalog
-            .where(
-              (row) =>
-                  after == null ||
-                  (row['game_id'] as String).compareTo(after) > 0,
-            )
-            .take(limit)
-            .toList();
-        request.response.write(jsonEncode(rows));
-      } else if (request.uri.path == '/rest/v1/rpc/get_player_snapshot') {
-        expect(request.method, 'POST');
-        final body = jsonDecode(await utf8.decoder.bind(request).join());
-        expect(body['p_game_id'], fixtures.gameId);
-        request.response.write(jsonEncode(snapshot));
-      } else if (request.uri.pathSegments.take(4).join('/') ==
-          'storage/v1/object/workshop-media') {
+      if (request.uri.path == '/games/catalog.json') {
         expect(request.method, 'GET');
-        final path = request.uri.pathSegments.skip(4).join('/');
+        catalogBodies.add(const {});
+        final rows = [...catalog]
+          ..sort(
+            (a, b) => (a['game_id'] as String).compareTo(b['game_id'] as String),
+          );
+        request.response.write(jsonEncode(rows));
+      } else if (request.uri.path == '/games/${fixtures.gameId}/snapshot.json') {
+        expect(request.method, 'GET');
+        request.response.write(jsonEncode(snapshot));
+      } else if (request.uri.pathSegments.isNotEmpty &&
+          request.uri.pathSegments.first == 'games') {
+        expect(request.method, 'GET');
+        final path = request.uri.pathSegments.skip(1).join('/');
         final bytes = media[path];
         if (bytes == null) {
           request.response.statusCode = 404;
@@ -151,7 +138,7 @@ void main() {
     updates = UpdateClient(
       store,
       'http://127.0.0.1:${server.port}',
-      'sb_publishable_auto_test',
+      '',
     );
   });
   tearDown(() async {
@@ -216,9 +203,7 @@ void main() {
     expect(found.last.gameId, '10000000-0000-4000-8000-0000000000c9');
     expect(found.first.projectId, projectId);
     expect(found.first.updatedAt, now);
-    expect(catalogBodies.length, greaterThanOrEqualTo(2));
-    expect(catalogBodies.first['p_after'], isNull);
-    expect(catalogBodies[1]['p_after'], isNotNull);
+    expect(catalogBodies, hasLength(1));
     expect(await store.games(), isEmpty);
   });
 
@@ -249,7 +234,7 @@ void main() {
     updates = UpdateClient(
       inspected,
       'http://127.0.0.1:${server.port}',
-      'sb_publishable_auto_test',
+      '',
     );
     await updates.syncGame(catalogGame());
     expect(inspected.compressionMethods, {'manifest.json': 0, path: 0});
@@ -283,7 +268,7 @@ void main() {
     );
     expect(await local.readAsBytes(), bytes);
     final download = requests.singleWhere(
-      (uri) => uri.pathSegments.contains('workshop-media'),
+      (uri) => uri.pathSegments.length > 2 && uri.pathSegments[2] == 'media',
     );
     expect(download.toString(), contains('%23'));
     expect(download.toString(), contains('%25'));
@@ -376,7 +361,9 @@ void main() {
       media['$projectId/$path'] = [3, 2, 1];
       await updates.syncGame(catalogGame(version: 2));
       expect(
-        requests.where((uri) => uri.pathSegments.contains('workshop-media')),
+        requests.where(
+          (uri) => uri.pathSegments.length > 2 && uri.pathSegments[2] == 'media',
+        ),
         hasLength(1),
       );
       await store.lookup(fixtures.gameId, '12345');
@@ -387,50 +374,18 @@ void main() {
     },
   );
 
-  test('real registration acknowledges only the submitted name after an in-flight rename', () async {
-    await store.installPackage(
-      await fixtures.package(root, fixtures.manifest()),
-    );
-    final old = await store.savePlayerProfile(fixtures.gameId, 'Алиса');
-    registrationGate = Completer<void>();
-    final inFlight = updates.registerProfile(old);
-    await registrationReceived.future.timeout(const Duration(seconds: 5));
-    final renamed = await store.savePlayerProfile(fixtures.gameId, 'Ася');
-    registrationGate!.complete();
-    await inFlight;
-    expect((await store.playerProfile(fixtures.gameId))!.pending, isTrue);
-    expect(registrations.single, {
-      'p_game_id': fixtures.gameId,
-      'p_character_name': 'Алиса',
-      'p_token': old.token,
-    });
-    registrationGate = null;
-    await updates.registerProfile(renamed);
-    final saved = (await store.playerProfile(fixtures.gameId))!;
-    expect(saved.pending, isFalse);
-    expect(saved.characterName, 'Ася');
-    expect(saved.token, old.token);
-    expect(registrations.last['p_token'], old.token);
-  });
-
-  test('server registration errors preserve pending and never surface a token echoed by the server', () async {
+  test('character names stay on the device and are acknowledged without a server', () async {
     await store.installPackage(
       await fixtures.package(root, fixtures.manifest()),
     );
     final profile = await store.savePlayerProfile(fixtures.gameId, 'Алиса');
-    registrationStatus = 500;
-    await expectLater(
-      updates.registerProfile(profile),
-      throwsA(
-        isA<PlayerException>().having(
-          (error) => error.toString(),
-          'message',
-          isNot(contains(profile.token)),
-        ),
-      ),
-    );
-    expect((await store.playerProfile(fixtures.gameId))!.pending, isTrue);
-    expect((await store.playerProfile(fixtures.gameId))!.token, profile.token);
+    requests.clear();
+    await updates.registerProfile(profile);
+    final saved = (await store.playerProfile(fixtures.gameId))!;
+    expect(saved.pending, isFalse);
+    expect(saved.characterName, 'Алиса');
+    expect(saved.token, profile.token);
+    expect(requests, isEmpty);
   });
 }
 

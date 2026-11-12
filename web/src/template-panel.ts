@@ -175,9 +175,12 @@ export async function mountTemplatePanel(root:HTMLElement,store:WorkshopStorage,
       message('Собираю ZIP…');const {zip}=await import('fflate');if(disposed)return;
       const archive=await new Promise<Uint8Array>((resolve,reject)=>zip(files,{level:0},(error,data)=>error?reject(error):resolve(data)));
       if(disposed)return;
+      const zipName=`карточки-${scope==='all'?'все':scope==='none'?'без-группы':`группа-${scope}`}.zip`;
+      const desktopSave=(window as unknown as {larpDesktop?:{saveFile?:(name:string,bytes:ArrayBuffer)=>Promise<string|null>}}).larpDesktop?.saveFile;
+      if(desktopSave){void desktopSave(zipName,archive.slice().buffer as ArrayBuffer);}else{
       const url=makeUrl(new Blob([new Uint8Array(archive)],{type:'application/zip'})),link=document.createElement('a');
-      link.href=url;link.download=`карточки-${scope==='all'?'все':scope==='none'?'без-группы':`группа-${scope}`}.zip`;link.click();
-      const timer=setTimeout(()=>{revoke(url);timers.delete(timer);},60000);timers.add(timer);
+      link.href=url;link.download=zipName;link.click();
+      const timer=setTimeout(()=>{revoke(url);timers.delete(timer);},60000);timers.add(timer);}
       message(`ZIP готов: ${selected.length} карточек PNG, 300 dpi. Загрузка началась.`);
     }catch(error){fail(error);}
     finally{output.width=0;output.height=0;if(!disposed){busy=false;update();}}

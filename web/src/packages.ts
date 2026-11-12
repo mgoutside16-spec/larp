@@ -123,3 +123,37 @@ export async function importPackage(store: WorkshopStorage,bytes:Uint8Array):Pro
     builds:[{version:m.version,created:m.created,filename:'Импортированный пакет'}]};
   return store.addImported(game,assets);
 }
+
+export interface PublicationFile { path: string; bytes: Uint8Array; sha256: string }
+export interface Publication { gameId: string; name: string; description: string; version: number; recordCount: number; manifest: Manifest; files: PublicationFile[] }
+
+// Данные для публикации игры в интернете: тот же manifest, что и в .rpgpack, и отдельные медиафайлы.
+export const PUBLISH_FILE_LIMIT=95*1024**2, PUBLISH_TOTAL_LIMIT=900*1024**2;
+export async function makePublication(store: WorkshopStorage,id: string): Promise<Publication> {
+  const game=await store.game(id);
+  const playerVersion=await store.playerVersion(id),version=Math.max(game.version,playerVersion)+1;
+  requireValue(Number.isSafeInteger(version),'Диапазон версий исчерпан. Создайте копию игры.');
+  const files:PublicationFile[]=[],checksums:Record<string,string>={};let total=0;
+  for(const row of game.records)for(const block of row.blocks)if(block.kind!=='text' && !Object.hasOwn(checksums,block.value)) {
+    const asset=await store.media(id,block.value);
+    requireValue(asset.blob.size<=PUBLISH_FILE_LIMIT,`Файл в записи «${row.title}» больше 95 МБ. Сожмите материалы игры в разделе «Сборки и версии».`);
+    total+=asset.blob.size;
+    requireValue(total<=PUBLISH_TOTAL_LIMIT,'Игра больше 900 МБ — это слишком много для публикации. Сожмите материалы игры.');
+    const bytes=new Uint8Array(await asset.blob.arrayBuffer());
+    checksums[block.value]=await sha256(bytes);
+    const embedded=/^media\/([0-9a-f]{64})\./.exec(block.value);
+    requireValue(!embedded || embedded[1]===checksums[block.value],'Медиафайл повреждён. Восстановите его из резервной копии.');
+    files.push({path:block.value,bytes,sha256:checksums[block.value]});
+  }
+  const manifest:Manifest={format_version:1,version,created:now(),game:{id:game.packageId.toLowerCase(),name:game.name,description:game.description},
+    locations:game.locations,records:game.records.map(({revision,...row})=>row),reserved_codes:game.reserved_codes,checksums};
+  validate(manifest,['manifest.json',...files.map(f=>f.path)]);
+  return {gameId:game.packageId.toLowerCase(),name:game.name,description:game.description,version,recordCount:game.records.length,manifest,files};
+}
+
+export async function markPublished(store: WorkshopStorage,id: string,version: number,created: string) {
+  await store.update(id,current=>{
+    current.version=Math.max(current.version,version);
+    current.builds.unshift({version,created,filename:'Опубликовано для игроков'});
+  });
+}

@@ -1,7 +1,7 @@
 name: larp_player
 description: Автономное приложение игрока «Без правил».
 publish_to: none
-version: 0.5.1+6
+version: 1.0.0+7
 
 environment:
   sdk: ^3.13.0

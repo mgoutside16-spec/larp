@@ -127,8 +127,11 @@ void main() {
         server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) async {
           request.response.headers.contentType = ContentType.json;
-          switch (request.uri.path) {
-            case '/rest/v1/rpc/get_player_catalog':
+          final snapshotId = RegExp(
+            r'^/games/([0-9a-f-]{36})/snapshot\.json$',
+          ).firstMatch(request.uri.path)?.group(1);
+          switch (snapshotId != null ? 'snapshot' : request.uri.path) {
+            case '/games/catalog.json':
               catalogRequests++;
               request.response.write(
                 jsonEncode([
@@ -152,10 +155,8 @@ void main() {
                   },
                 ]),
               );
-            case '/rest/v1/rpc/get_player_snapshot':
-              final body = jsonDecode(
-                await utf8.decoder.bind(request).join(),
-              ) as Map<String, dynamic>;
+            case 'snapshot':
+              final body = {'p_game_id': snapshotId};
               final empty = body['p_game_id'] != gameId;
               final snapshotManifest =
                   jsonDecode(jsonEncode(manifest)) as Map<String, dynamic>;
@@ -203,7 +204,7 @@ void main() {
         updates = UpdateClient(
           store,
           'http://127.0.0.1:${server.port}',
-          'sb_publishable_widget_test',
+          '',
           client: client,
         );
       });
@@ -246,7 +247,10 @@ void main() {
           (await tester.runAsync(() => store.history(gameId)))!.single.title,
           'Сон после изменения',
         );
-        await pumpUntilValue(tester, () async => registrationRequests > 0);
+        await pumpUntilValue(
+          tester,
+          () async => (await store.playerProfile(gameId))?.pending == false,
+        );
         // A manually supplied package remains usable after automatic installs.
         final manual = await tester.runAsync(() async {
           final package = await createPackage();
@@ -305,7 +309,7 @@ void main() {
         final hash = sha256.convert(bytes).toString();
         server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) async {
-          if (request.uri.path == '/rest/v1/rpc/get_player_catalog') {
+          if (request.uri.path == '/games/catalog.json') {
             request.response.headers.contentType = ContentType.json;
             request.response.write('[]');
           } else if (request.uri.path == '/rest/v1/rpc/get_player_release') {
@@ -329,7 +333,7 @@ void main() {
         updates = UpdateClient(
           store,
           'http://127.0.0.1:${server.port}',
-          'sb_publishable_widget_test',
+          '',
           client: client,
         );
       });
@@ -364,7 +368,7 @@ void main() {
   );
 
   playerTest(
-    'offline character stays playable and registers after reconnecting',
+    'offline character stays playable and the name is kept on the device',
     (tester) async {
       late HttpServer server;
       late HttpClient client;
@@ -383,7 +387,7 @@ void main() {
           if (!online) {
             request.response.statusCode = 503;
             request.response.write('{}');
-          } else if (request.uri.path.endsWith('get_player_catalog')) {
+          } else if (request.uri.path == '/games/catalog.json') {
             request.response.write('[]');
           } else if (request.uri.path.endsWith('register_player')) {
             final body = jsonDecode(
@@ -407,7 +411,7 @@ void main() {
         updates = UpdateClient(
           store,
           'http://127.0.0.1:${server.port}',
-          'sb_publishable_widget_test',
+          '',
           client: client,
         );
       });
@@ -423,7 +427,6 @@ void main() {
         final profile = (await tester.runAsync(
           () => store.playerProfile(gameId),
         ))!;
-        expect(profile.pending, isTrue);
         expect(
           (await tester.runAsync(() => store.lockState(gameId)))!.wrongAttempts,
           3,
@@ -457,19 +460,13 @@ void main() {
           tester,
           () async => (await store.playerProfile(gameId))?.pending == false,
         );
-        expect(registrations, greaterThan(0));
+        expect(registrations, 0, reason: 'Names stay on the device');
         await tester.tap(find.byTooltip('Ваши игры'));
         await tester.pump();
-        final previous = registrations;
         await tester.pump(const Duration(seconds: 20));
         await pumpUntil(
           tester,
           find.textContaining('Игры и материалы обновлены'),
-        );
-        expect(
-          registrations,
-          previous,
-          reason: 'Old projects do not receive heartbeats',
         );
       } finally {
         updates.close();

@@ -9,6 +9,9 @@ export const ordered=(game:Game)=>[...game.records].sort((a,b)=>locationName(gam
 
 export function download(bytes:Uint8Array|ArrayBuffer|Blob,filename:string,mime='application/octet-stream') {
   const blob=bytes instanceof Blob?bytes:new Blob([bytes instanceof Uint8Array?new Uint8Array(bytes):bytes],{type:mime});
+  const safe=filename.replace(/[<>:"/\\|?*\x00-\x1f]/g,'_');
+  const bridge=(window as unknown as {larpDesktop?:{saveFile?:(name:string,bytes:ArrayBuffer)=>Promise<string|null>}}).larpDesktop;
+  if(bridge?.saveFile){void blob.arrayBuffer().then(b=>bridge.saveFile!(safe,b)).catch(error=>window.alert(`Не удалось сохранить файл: ${(error as Error).message}`));return;}
   const url=URL.createObjectURL(blob),link=document.createElement('a');
   link.href=url;link.download=filename.replace(/[<>:"/\\|?*\x00-\x1f]/g,'_');link.click();
   setTimeout(()=>URL.revokeObjectURL(url),60000);
