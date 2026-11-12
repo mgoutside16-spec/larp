@@ -1,0 +1,187 @@
+# Implementation ledger — LARP Studio
+
+Plan: `docs/superpowers/plans/2026-10-25-workshop.md`.
+User specification explicitly requests immediate implementation; no approval pause.
+Cloud checkout is already isolated; no worktree created. Initial branch `work` is unborn.
+Pre-flight: storage returns plain dictionaries consumed by packages/export/Qt.
+Package import restores explicit record IDs and code reservations through transaction.
+
+Task 1: complete — `pytest tests/test_project.py -q`: 18 passed.
+Task 2: complete — 34 storage/export/package tests passed before GUI work.
+Task 3: complete — 42 tests including clicked GUI workflow and WAV decoding passed.
+Task 4: complete — repeatable install, pip check, Qt startup, Linux packaged
+startup (with an existing game), source docs and Windows CI configuration.
+Environment draft saved install_script/start_skill; metadata named LARP Studio.
+Publication/restoration and Windows CI execution are not verified.
+
+Final review: independent read-only reviewer; three Important findings and one
+minor found. Integer overflow was regraded Important because bad input escaped
+the GUI error handler. All addressed in one regression pass; 60 tests passed.
+- Commit error: previous package restored and version/history rolled back.
+- Windows aliases/device names/ADS rejected before extraction.
+- Existing content-addressed media checked before reuse.
+- Persisted integers bounded and version exhaustion reported.
+- Additional self-review: never delete a concurrently created target folder;
+  symlinked media cannot write outside project. Regression tests RED→GREEN.
+
+No deferred review findings. Windows execution, codecs and EXE validation remain
+explicit platform limitations, not claimed as verified. Mobile/server are deferred
+per user scope. Source, docs and CI reviewed; no remote publication performed.
+
+## Browser delivery — superseding user choice
+
+User explicitly selected permanent browser link, no installation; later Codex
+changes must preserve game data. Browser app built under web/ with IndexedDB.
+No EXE work is required for this selected delivery. Original Python source retained.
+12 Node tests, 10 real browser acceptance checks, 2 browser regression checks.
+Independent review: three Important issues reproduced with RED tests before fixes:
+Enter paragraphs, pending media/text edits, export/import size-limit consistency.
+Compatibility checked: Python reads/imports browser .rpgpack; openpyxl reads
+browser Excel and pypdf reads browser PDF with default spoiler hiding.
+Production npm audit: 0 vulnerabilities after dependency updates.
+Deployment: source pushed to main, commit 6e813a8. GitHub run 40191908509 passed
+installation, Node tests, build and both browser suites; Configure Pages failed
+with Create Pages site / Resource not accessible by integration (403), including
+the workflow's GITHUB_TOKEN. User asked asynchronously to enable Settings > Pages
+> Source: GitHub Actions. No site availability claim until actual HTTPS check.
+Manual desktop workflow's invalid runner context in job env corrected to a local
+settings directory; no desktop runtime or functionality changed.
+
+Deployment completed after user enabled Source: GitHub Actions. Run 40194144453:
+build and deploy success. Public site https://mgoutside16-spec.github.io/larp/
+returns HTTP 200. Real published assets passed create/save/reload and downloads
+for XLSX/PDF/.rpgpack in a fresh browser context; no JS errors/failed requests.
+TLS verification preserved via system-trusted urllib transport for cloud browser
+requests (its private trust store lacks the environment proxy CA).
+
+
+## Accounts and shared browser workshop — version 0.3
+
+User paused Android work. Confirmed Supabase schema/update and Site URL setup.
+Preapproved administrator mgoutside16@gmail.com requires verified email.
+Account login/cabinet, global admin/master roles, project sharing with pending
+invites, server RLS/CAS, private media, project-specific groups and saved image
+printing implemented. Original local database preserved for explicit admin import.
+Sidebar contains supplied «Без правил» emblem; example card rasterized directly
+from supplied PDF. Export: per-code PNG ZIP, source resolution, 300 dpi.
+
+Independent read-only review: isolated proposal database prevents shared-cache
+refresh from losing a saved edit; busy print export survives background polling;
+long codes fit large font, registration name retained, group errors localized.
+Each reproduced before fixing. Also covered revoked/deleted selected project.
+Final checks: 26 Node tests, 158 real PostgreSQL assertions, browser suites
+10 acceptance / 2 editor regressions / 8 account scenarios / 5 review regressions.
+Multipart browser fixture now receives actual File/Blob bytes over loopback HTTP:
+Chromium intercepted postData omitted file-backed data; checksum export correctly
+rejected those empty test uploads. Production SDK/upload code unchanged.
+Real backend denies anonymous table/identity RPC access (401/42501). No actual
+user password or auth email used in tests; owner completes registration himself.
+Updated reusable cloud setup/start instructions saved to configuration draft.
+Publication of final source is verified separately below.
+
+
+Version 0.3 deployed from main commit 0c45794 by GitHub run 40202136444.
+policies/build/deploy all success. Actual published HTTPS responses verified
+in Chromium via system-trusted urllib transport: login/password, inaccessible
+projects before sign-in, logo, registration name/email/password, seven HTTP 200
+responses and zero uncaught JS errors. No real account/email created by agent.
+Working tree clean after documentation commit.
+
+
+## Android player v0.4
+
+Plan: docs/superpowers/plans/2026-10-25-player.md; design in sibling specs/.
+User resumed Android and explicitly requires online and offline file updates.
+Flutter chosen per original recommendation; full package online downloads,
+iOS signing and optional differential delivery remain explicitly unclaimed.
+Independent domains: toolchain, offlinecore, UI, publication; parent owns HTTP
+updater and integration/release. Source isolated on player-android branch.
+
+Core19, HTTP13, UI9 initially GREEN; real SQLite/files/ZIP/HTTP.
+Fresh independent review found one Important history/media cross-version collision:
+RED expected old bytes got new unopened bytes, fixed by record-scoped media lookup.
+UI game-switch race regraded Important for cross-game content context: actual
+SQLite result delayed in test adapter, RED old record navigation, fixed captured
+game guards. Browser DIV/SPAN emphasis regression RED→GREEN. Full44/44 GREEN
+and analyzer clean. Prior immutable version dirs retained; automatic cleanup of
+unreferenced/staging dirs is a deferred minor, documented in mobile/README.md.
+No further independent-review blockers. Core expected-game/version installation
+guards ensure online metadata mismatch cannot alter active version.
+
+Backend validated independently by parent: old158 + new34 PostgreSQL assertions
+and3 separate-connection concurrency scenarios pass. Web39, build and five
+browser scripts pass. Additive SQL published on player-android at1126ae5; owner
+asked asynchronously to run it. No servicekey, password or real player data used.
+
+Toolchains pinned with verified archive digests, JRE-only systemJava replaced
+by workspace fullJDK21. Telemetry/analyzer paths avoid read-only HOME. Android
+TCG emulator available in disposable default-root container (no HOMEoverride).
+Flutter commands must serialize: concurrent test/pubget/build briefly caused
+GeneratedPluginRegistrant to reference excluded integration_test dev plugin.
+Final release build137.9s,58.3MB, signature/sha verified; runtime smoke ongoing.
+Private stable signing key outside Git, under /workspace/larp-artifacts/private.
+GitHubintegration cannot access repositorysecrets (403); consumer signing stays
+in authorized cloud environment, CI checks use debug compilation only.
+
+Native Android verification exposed a real compatibility boundary before delivery:
+SAF import/code/text/WAV/H264 all worked in signed release offline, but PNG failed
+'Could not decompress image'. Skia and CPU rendering flags did not fix it, so
+production renderer remained unchanged. Exact source/APK/Android-loaded PNG bytes
+and CRC matched, memory available, JPEG/rawRGBA/tinyPNG worked. Narrow native probe
+then proved dart:io zlib and archive native bytes/lazy throw 'Filter error, bad data'
+for valid IDAT, while ZLibDecoderWeb returns exact expected6,291,318bytes/SHA.
+The first fallback using package:image alone failed too because its PNG decoder
+also selected native zlib. Host PNG/inflate paths all passed; Android boundary is
+native wrapped zlib, not assets or framebuffer. No published APK existed yet.
+
+Compatibility implementation: PlayerImageProvider primes/preserves native frame0,
+falls back in compute isolate to a licensed local image4.12.0 PNG decoder whose
+only algorithm change is pure Dart streaming inflation, then raw premultiplied
+RGBA. Both supplied emblem and record files use it. image4.12.0/archive4.5.2 pinned;
+upstream license/source hash retained. Size guarded64MiB/40MP before pixels.
+Full50/50 tests GREEN, analyzer clean; tests include exact full emblem pixel SHA,
+translucent RGBA, animation first-frame ordering and bounds. Native test fixes
+also wait for enabled audio button (tooltip existed while disabled), pump after
+code input, and use60second clips to accommodate slow TCG. Final native2-test run
+is now pending; do not claim final delivery or publish baseline a11f966... APK.
+After native GREEN toolchain agent will rebuild signed release, replace dist APK,
+verify signature/hash and repeat actual signed SAF/photo/lock/update smoke.
+
+User executed player-updates.sql with Success; actual real anonymous RPC returned
+HTTP200null for unpublished UUID. Source branch player-android pushed25a8f90;
+Android CI40206161982 success (initial44 tests and native debug compilation).
+Current PNG compatibility changes uncommitted. Final main merge/Pages/GitHubRelease
+still pending; do not finish at source-only. Cloud environment draft updated with
+mobile setup/start instructions; user must save/publish environment to retain it.
+
+
+PNG compatibility follow-up: native zlib probe confirmed Filter error/bad data
+while pure Dart inflate matched exact raw SHA370e65e... on Android. A local MIT
+image4.12.0 PNG decoder now selects pure streaming ZLibDecoderWeb. The first raw
+RGBA workaround exposed a separate descriptor lifetime bug; tombstone symbolicated
+SkData::size / SkMallocPixelRef::MakeWithData null data. New host regression also
+reproduced Codec failed to produce image before the fix. Raw buffer/descriptor now
+remain alive through first-frame decoding and return a primed codec. Full51 tests
+and analyzer GREEN. Native supplied-emblem case now GREEN, no SIGSEGV; second
+native media/lock/update case ongoing. No consumer APK published before these fixes.
+
+
+Native final2/2GREEN exit0,2:06. Signed release rebuilt alone42.5s,61.5MB;
+replacement APK sha7e2198dc3a391cc16c81e072039d98a4bf09aa08698a5be1dc57dbac77423209
+verified and stable RSA3072 certificateunchanged. Actual replacement installed,
+offline startup and correct supplied emblem visualconfirmed. Dist consumer APK
+nowcorrectlyreplacedbaseline. Synthetic SAF/photo/state smoke ongoing. Source
+compatibilitycommit62c3072 pushed; no more Dart/Flutter source changes pending.
+
+
+Final native signed-artifact smoke complete (player-manual-summary.txt): offline
+SAFv1/v2, text/PNG/WAV/H264, counter2/1/lock, coldrestartpersistentlock, V2keepslock
+andhistoryopensV2. Source51 unit + native2 + 39web + old158/new34 SQL +3concurrency
+GREEN. FinalAndroidCI40210537419 success. Pages40211488851 success; siteHTTPSlogin
+verified without sendingmail/accounts. Uploaded APK viaActions40211679271 after
+hostuploaduploads.github.com401; separate release-artifacts/v0.4.0 branchcontains
+ONLYsignedAPK+SHA(no key). PublicReleasev0.4.0, directlatestdownloadHTTP200 and
+full61,465,859byteSHA matches7e2198...23209. mainFFintegrated; no sourceforkpending.
+Stable signingbackupzip prepared under private artifacts (neverpublic/Git).
+No known blocker remains. Differentialdownloads and unreferencedversioncleanup
+remain documentedoptional/deferred work; physicaldevicesound/iOSunverified.

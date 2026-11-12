@@ -1,0 +1,532 @@
+[
+  {
+    "file": "01_Source/backend/account-update.sql",
+    "line": 5,
+    "definition": "alter table public.workshop_invites add column if not exists created_at timestamptz not null default now();"
+  },
+  {
+    "file": "01_Source/backend/account-update.sql",
+    "line": 7,
+    "definition": "create or replace function public.list_workshop_invites(p_project_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/account-update.sql",
+    "line": 17,
+    "definition": "create or replace function public.remove_workshop_invite(p_project_id uuid,p_email text)"
+  },
+  {
+    "file": "01_Source/backend/account-update.sql",
+    "line": 35,
+    "definition": "create table if not exists public.workshop_deleted_projects ("
+  },
+  {
+    "file": "01_Source/backend/account-update.sql",
+    "line": 38,
+    "definition": "alter table public.workshop_deleted_projects enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/account-update.sql",
+    "line": 41,
+    "definition": "create or replace function public.save_workshop_project(p_document jsonb,p_expected_revision bigint,p_activate boolean default true)"
+  },
+  {
+    "file": "01_Source/backend/account-update.sql",
+    "line": 73,
+    "definition": "create or replace function public.delete_workshop_project(p_id uuid,p_expected_revision bigint)"
+  },
+  {
+    "file": "01_Source/backend/account-update.sql",
+    "line": 86,
+    "definition": "create or replace function public.workshop_media_delete_access(p_name text)"
+  },
+  {
+    "file": "01_Source/backend/account-update.sql",
+    "line": 101,
+    "definition": "create policy workshop_media_cleanup_lookup on storage.objects for select to authenticated"
+  },
+  {
+    "file": "01_Source/backend/account-update.sql",
+    "line": 105,
+    "definition": "create policy workshop_media_delete on storage.objects for delete to authenticated"
+  },
+  {
+    "file": "01_Source/backend/invite-management.sql",
+    "line": 4,
+    "definition": "alter table public.workshop_invites add column if not exists created_at timestamptz not null default now();"
+  },
+  {
+    "file": "01_Source/backend/invite-management.sql",
+    "line": 6,
+    "definition": "create or replace function public.list_workshop_invites(p_project_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/invite-management.sql",
+    "line": 16,
+    "definition": "create or replace function public.remove_workshop_invite(p_project_id uuid,p_email text)"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 11,
+    "definition": "alter table public.workshop_projects add column if not exists player_version bigint"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 15,
+    "definition": "create table if not exists public.player_auto_sources ("
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 19,
+    "definition": "alter table public.player_auto_sources enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 48,
+    "definition": "alter table public.workshop_projects alter column player_version set default 1;"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 49,
+    "definition": "alter table public.workshop_projects alter column player_version set not null;"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 53,
+    "definition": "create or replace function public.player_auto_content(p_document jsonb)"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 62,
+    "definition": "create or replace function public.player_auto_project_change()"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 86,
+    "definition": "create trigger player_auto_project_version before insert or update on public.workshop_projects"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 91,
+    "definition": "create or replace function public.player_auto_release_identity()"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 101,
+    "definition": "create trigger player_auto_release_source before insert on public.player_releases"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 104,
+    "definition": "create or replace function public.get_player_source_version(p_project_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 112,
+    "definition": "create or replace function public.get_player_catalog(p_after uuid default null,p_limit integer default 100)"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 130,
+    "definition": "create or replace function public.get_player_snapshot(p_game_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 164,
+    "definition": "create or replace function public.player_auto_media_referenced(p_name text)"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 174,
+    "definition": "create or replace function public.player_storage_encode_path(p_path text)"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 186,
+    "definition": "create or replace function public.player_storage_is_file_get(p_bucket text,p_name text)"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 201,
+    "definition": "create policy player_auto_media_get on storage.objects for select to anon,authenticated"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 206,
+    "definition": "create policy player_release_read on storage.objects for select to anon,authenticated"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 209,
+    "definition": "create table if not exists public.player_participants ("
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 217,
+    "definition": "alter table public.player_participants enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 220,
+    "definition": "create or replace function public.register_player(p_game_id uuid,p_character_name text,p_token text)"
+  },
+  {
+    "file": "01_Source/backend/player-auto-sync.sql",
+    "line": 240,
+    "definition": "create or replace function public.list_game_players(p_project_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/player-download-access.sql",
+    "line": 6,
+    "definition": "create or replace function public.player_storage_encode_path(p_path text)"
+  },
+  {
+    "file": "01_Source/backend/player-download-access.sql",
+    "line": 18,
+    "definition": "create or replace function public.player_storage_is_file_get(p_bucket text,p_name text)"
+  },
+  {
+    "file": "01_Source/backend/player-download-access.sql",
+    "line": 33,
+    "definition": "create policy player_release_read on storage.objects for select to anon,authenticated"
+  },
+  {
+    "file": "01_Source/backend/player-download-access.sql",
+    "line": 37,
+    "definition": "create policy player_auto_media_get on storage.objects for select to anon,authenticated"
+  },
+  {
+    "file": "01_Source/backend/player-public-downloads.sql",
+    "line": 7,
+    "definition": "create policy player_release_read on storage.objects for select to anon,authenticated"
+  },
+  {
+    "file": "01_Source/backend/player-public-downloads.sql",
+    "line": 10,
+    "definition": "create policy player_auto_media_get on storage.objects for select to anon,authenticated"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 8,
+    "definition": "create table if not exists public.player_releases ("
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 15,
+    "definition": "alter table public.player_releases enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 17,
+    "definition": "create index if not exists player_releases_project on public.player_releases(project_id);"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 19,
+    "definition": "insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 23,
+    "definition": "create or replace function public.get_player_release(p_game_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 32,
+    "definition": "create or replace function public.player_release_can_stage(p_name text)"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 42,
+    "definition": "create or replace function public.player_release_is_current(p_name text)"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 48,
+    "definition": "create or replace function public.publish_player_release(p_project_id uuid,p_expected_revision bigint,"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 85,
+    "definition": "create or replace function public.player_release_guard_object()"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 99,
+    "definition": "create trigger player_release_immutable_object before update or delete on storage.objects"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 109,
+    "definition": "create policy player_release_read on storage.objects for select to anon,authenticated"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 113,
+    "definition": "create policy player_release_stage_lookup on storage.objects for select to authenticated"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 117,
+    "definition": "create policy player_release_insert on storage.objects for insert to authenticated"
+  },
+  {
+    "file": "01_Source/backend/player-updates.sql",
+    "line": 120,
+    "definition": "create policy player_release_delete on storage.objects for delete to authenticated"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 6,
+    "definition": "create table if not exists public.workshop_projects ("
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 14,
+    "definition": "alter table public.workshop_projects add column if not exists status text not null default 'active'"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 16,
+    "definition": "create index if not exists workshop_projects_owner_updated on public.workshop_projects(owner_id,updated_at desc);"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 17,
+    "definition": "create table if not exists public.workshop_profiles ("
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 21,
+    "definition": "create table if not exists public.workshop_admins ("
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 26,
+    "definition": "create table if not exists public.workshop_admin_bootstrap ("
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 32,
+    "definition": "create table if not exists public.workshop_members ("
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 38,
+    "definition": "create index if not exists workshop_members_user on public.workshop_members(user_id,project_id);"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 39,
+    "definition": "create table if not exists public.workshop_invites ("
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 45,
+    "definition": "alter table public.workshop_invites add column if not exists created_at timestamptz not null default now();"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 47,
+    "definition": "create table if not exists public.workshop_deleted_projects ("
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 50,
+    "definition": "alter table public.workshop_deleted_projects enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 53,
+    "definition": "create table if not exists public.workshop_record_history ("
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 62,
+    "definition": "create or replace function public.workshop_is_admin()"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 66,
+    "definition": "create or replace function public.workshop_can_access(p_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 72,
+    "definition": "create or replace function public.workshop_can_manage(p_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 77,
+    "definition": "create or replace function public.workshop_can_view_profile(p_user_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 85,
+    "definition": "alter table public.workshop_projects enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 86,
+    "definition": "alter table public.workshop_profiles enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 87,
+    "definition": "alter table public.workshop_admins enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 88,
+    "definition": "alter table public.workshop_admin_bootstrap enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 89,
+    "definition": "alter table public.workshop_members enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 90,
+    "definition": "alter table public.workshop_invites enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 91,
+    "definition": "alter table public.workshop_record_history enable row level security;"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 98,
+    "definition": "create policy workshop_read_accessible on public.workshop_projects for select to authenticated"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 101,
+    "definition": "create policy workshop_profile_read on public.workshop_profiles for select to authenticated"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 104,
+    "definition": "create policy workshop_members_read on public.workshop_members for select to authenticated"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 107,
+    "definition": "create policy workshop_invites_read on public.workshop_invites for select to authenticated"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 110,
+    "definition": "create or replace function public.workshop_sync_profile()"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 124,
+    "definition": "create trigger workshop_auth_profile after insert or update of email,email_confirmed_at on auth.users"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 133,
+    "definition": "create or replace function public.get_workshop_identity()"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 145,
+    "definition": "create or replace function public.set_workshop_display_name(p_name text)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 153,
+    "definition": "create or replace function public.list_workshop_users()"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 163,
+    "definition": "create or replace function public.set_workshop_admin(p_user_id uuid,p_admin boolean)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 180,
+    "definition": "create or replace function public.validate_workshop_document(d jsonb,previous jsonb)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 268,
+    "definition": "create or replace function public.save_workshop_project(p_document jsonb,p_expected_revision bigint,p_activate boolean default true)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 300,
+    "definition": "create or replace function public.delete_workshop_project(p_id uuid,p_expected_revision bigint)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 312,
+    "definition": "create or replace function public.list_workshop_members(p_project_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 322,
+    "definition": "create or replace function public.add_workshop_member(p_project_id uuid,p_email text)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 341,
+    "definition": "create or replace function public.remove_workshop_member(p_project_id uuid,p_user_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 350,
+    "definition": "create or replace function public.list_workshop_invites(p_project_id uuid)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 360,
+    "definition": "create or replace function public.remove_workshop_invite(p_project_id uuid,p_email text)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 372,
+    "definition": "create or replace function public.claim_workshop_invites()"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 402,
+    "definition": "insert into storage.buckets(id,name,public,file_size_limit)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 405,
+    "definition": "create or replace function public.workshop_media_access(p_name text)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 414,
+    "definition": "create or replace function public.workshop_media_delete_access(p_name text)"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 434,
+    "definition": "create policy workshop_media_cleanup_lookup on storage.objects for select to authenticated"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 437,
+    "definition": "create policy workshop_media_read on storage.objects for select to authenticated"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 439,
+    "definition": "create policy workshop_media_insert on storage.objects for insert to authenticated"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 441,
+    "definition": "create policy workshop_media_update on storage.objects for update to authenticated"
+  },
+  {
+    "file": "01_Source/backend/schema.sql",
+    "line": 444,
+    "definition": "create policy workshop_media_delete on storage.objects for delete to authenticated"
+  }
+]
