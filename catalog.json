@@ -1,0 +1,20 @@
+[
+ {
+  "game_id": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3",
+  "project_id": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3",
+  "name": "Сыгровка \"Юльппё\"",
+  "description": "",
+  "version": 18,
+  "record_count": 46,
+  "updated_at": "2026-11-12T21:40:17.037Z"
+ },
+ {
+  "game_id": "d205801d-a838-468e-9688-a8e1d1f55741",
+  "project_id": "d205801d-a838-468e-9688-a8e1d1f55741",
+  "name": "Проверка автопубликации 1.1.1",
+  "description": "",
+  "version": 2,
+  "record_count": 1,
+  "updated_at": "2026-11-12T21:35:10.273Z"
+ }
+]

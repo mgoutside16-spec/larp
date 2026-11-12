@@ -1,0 +1,36 @@
+{
+ "game_id": "d205801d-a838-468e-9688-a8e1d1f55741",
+ "project_id": "d205801d-a838-468e-9688-a8e1d1f55741",
+ "version": 2,
+ "manifest": {
+  "format_version": 1,
+  "version": 2,
+  "created": "2026-11-12T21:35:06.384Z",
+  "game": {
+   "id": "d205801d-a838-468e-9688-a8e1d1f55741",
+   "name": "Проверка автопубликации 1.1.1",
+   "description": ""
+  },
+  "locations": [],
+  "records": [
+   {
+    "id": "b68740eb-f28c-4134-a9bd-eb96efc0cbe7",
+    "code": "55452",
+    "title": "Контрольная запись",
+    "location_id": null,
+    "blocks": [
+     {
+      "kind": "text",
+      "value": "<p>Проверка автоматического обновления сайта.</p>"
+     }
+    ],
+    "modified": "2026-11-12T21:29:00.431Z"
+   }
+  ],
+  "reserved_codes": [
+   "55452"
+  ],
+  "checksums": {}
+ },
+ "files": []
+}
