@@ -339,7 +339,8 @@ void main() {
       final upgraded = await databaseFactoryFfi.openDatabase(
         '${playerRoot.path}/player.sqlite',
       );
-      expect(await upgraded.getVersion(), 2);
+      expect(await upgraded.getVersion(), 3);
+      expect(await upgraded.query('withdrawals'), isEmpty);
       for (final entry in before.entries) {
         expect(await upgraded.query(entry.key), entry.value, reason: entry.key);
       }
