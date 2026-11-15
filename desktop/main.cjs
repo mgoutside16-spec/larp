@@ -142,6 +142,16 @@ ipcMain.handle('larp:github-connect', async (_e, token) => {
   return true;
 });
 ipcMain.handle('larp:github-disconnect', () => { fs.rmSync(tokenFile(), {force: true}); return true; });
+ipcMain.handle('larp:publications', () => {
+  const token = readToken();
+  if (!token) throw new Error('Сначала подключите GitHub.');
+  return publisher.publications(token);
+});
+ipcMain.handle('larp:unpublish', (_event, id) => {
+  const token = readToken();
+  if (!token) throw new Error('Сначала подключите GitHub.');
+  return publisher.unpublish(token, id);
+});
 ipcMain.handle('larp:publish', async (event, pub) => {
   const token = readToken();
   if (!token) throw new Error('Сначала подключите GitHub.');

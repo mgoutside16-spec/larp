@@ -6,6 +6,7 @@ const GAMES = new URL('../games/', location.href).href;
 const DATA = 'mir-snov-data';
 const MEDIA = 'mir-snov-media';
 const KEY = 'mir-snov-state';
+const GAME_ID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 const LOCK_MS = 30 * 60 * 1000;
 const app = document.getElementById('app');
 
@@ -105,11 +106,28 @@ async function sync(manual = false) {
   syncing = true; syncText = 'Проверяем игры…'; syncPercent = null; refresh();
   let failure = null;
   try {
-    const catalog = await fetchJson(`${GAMES}catalog.json`) || [];
-    if (!Array.isArray(catalog)) throw new Error('Список игр повреждён.');
-    state.catalog = catalog.map((r) => ({game_id: r.game_id, name: r.name, description: r.description, version: r.version}));
+    const [catalog, withdrawals] = await Promise.all([
+      fetchJson(`${GAMES}catalog.json`),
+      fetchJson(`${GAMES}withdrawn.json`),
+    ]);
+    if (!Array.isArray(catalog) || catalog.some((row) => !row ||
+      typeof row.game_id !== 'string' || !GAME_ID.test(row.game_id) || typeof row.name !== 'string' ||
+      !Number.isSafeInteger(row.version) || row.version < 1)) throw new Error('Список игр повреждён.');
+    if (withdrawals !== null && (typeof withdrawals !== 'object' || Array.isArray(withdrawals) ||
+      Object.entries(withdrawals).some(([id, version]) => !GAME_ID.test(id) || !Number.isSafeInteger(version) || version < 1))) {
+      throw new Error('Список снятых публикаций повреждён.');
+    }
+    state.withdrawn ??= {};
+    for (const [id, version] of Object.entries(withdrawals || {})) {
+      state.withdrawn[id] = Math.max(state.withdrawn[id] || 0, version);
+    }
+    const active = catalog.filter((row) => row.version > (state.withdrawn[row.game_id] || 0));
+    state.catalog = active.map((r) => ({game_id: r.game_id, name: r.name, description: r.description, version: r.version}));
+    state.catalogVerified = true;
+    if (state.selected && !isListed(state.selected)) delete state.selected;
+    if (screen.game && !isListed(screen.game)) screen = {name: 'home'};
     saveState();
-    for (const row of catalog) {
+    for (const row of active) {
       if ((state.installed[row.game_id]?.version || 0) >= row.version) continue;
       syncText = `Загружаем «${row.name}»…`; syncPercent = 0; refresh();
       try {
@@ -198,10 +216,14 @@ function render() {
   if (screen.name === 'record') return renderRecord();
 }
 
+const isListed = (id) => !state.catalogVerified || state.catalog?.some((row) => row.game_id === id);
+
 function renderHome() {
   const rows = new Map();
   for (const row of state.catalog || []) rows.set(row.game_id, row);
-  for (const [id, g] of Object.entries(state.installed)) if (!rows.has(id)) rows.set(id, {game_id: id, name: g.name, version: g.version});
+  if (!state.catalogVerified) {
+    for (const [id, g] of Object.entries(state.installed)) if (!rows.has(id)) rows.set(id, {game_id: id, name: g.name, version: g.version});
+  }
   const list = [...rows.values()].map((row) => {
     const local = state.installed[row.game_id];
     const status = !local ? 'Ещё не скачана' : local.version < row.version ? 'Есть обновление' : 'Скачана · работает без интернета';
@@ -255,7 +277,7 @@ app.addEventListener('click', async (event) => {
   if (!target) return;
   if (target.dataset.game) {
     const id = target.dataset.game;
-    if (!state.installed[id]) return;
+    if (!state.installed[id] || !isListed(id)) return;
     state.selected = id; saveState();
     screen = state.profiles[id] ? {name: 'code', game: id} : {name: 'name', game: id};
     return render();
@@ -274,7 +296,9 @@ app.addEventListener('click', async (event) => {
   if (action === 'open') {
     const code = document.getElementById('code').value.trim();
     if (!/^\d{5}$/.test(code)) { document.getElementById('code-error').textContent = 'Введите пять цифр.'; return; }
-    const result = await openCode(screen.game, code);
+    const current = screen;
+    const result = await openCode(current.game, code);
+    if (screen !== current) return;
     if (result.record) { screen = {name: 'record', game: screen.game, record: result.record}; return render(); }
     screen = {name: 'code', game: screen.game, error: result.error}; return render();
   }
@@ -288,14 +312,14 @@ app.addEventListener('input', (event) => {
   if (event.target.id === 'code') event.target.value = event.target.value.replace(/\D/g, '').slice(0, 5);
 });
 window.addEventListener('online', () => sync());
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && navigator.onLine && screen.name === 'home') sync(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && navigator.onLine) sync(); });
 
 (async function start() {
   if ('serviceWorker' in navigator) {
     try { await navigator.serviceWorker.register('sw.js'); } catch { /* офлайн-режим недоступен */ }
   }
   try { if (navigator.storage?.persist) await navigator.storage.persist(); } catch { /* не поддерживается */ }
-  if (state.selected && state.installed[state.selected]) {
+  if (state.selected && state.installed[state.selected] && isListed(state.selected)) {
     screen = state.profiles[state.selected] ? {name: 'code', game: state.selected} : {name: 'name', game: state.selected};
   }
   render();

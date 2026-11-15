@@ -183,10 +183,10 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
     final profile = await widget.store.playerProfile(game.id);
     if (!mounted) return;
     final name = await _askCharacter(game, profile?.characterName ?? '');
-    if (name == null || !mounted) return;
+    if (name == null || !mounted || _games?.any((item) => item.id == game.id) != true) return;
     try {
       final saved = await widget.store.savePlayerProfile(game.id, name);
-      if (!mounted) return;
+      if (!mounted || _games?.any((item) => item.id == game.id) != true) return;
       _profile = saved;
     } catch (e) {
       _notice(playerError(e));
@@ -247,8 +247,26 @@ class _PlayerHomeState extends State<_PlayerHome> with WidgetsBindingObserver {
     var noProjects = false;
     try {
       final catalog = await updates.catalog();
+      final withdrawn = await updates.withdrawals();
+      if (withdrawn.isNotEmpty) {
+        await widget.store.recordWithdrawals(withdrawn);
+        await _loadGames();
+        if (!mounted) return;
+        final current = _game;
+        if (current != null && (withdrawn[current.id] ?? 0) >= current.version) {
+          _timer?.cancel();
+          setState(() {
+            _game = null;
+            _profile = null;
+            _code = '';
+            _lock = null;
+            _message = null;
+          });
+        }
+      }
       noProjects = catalog.isEmpty && _games?.isEmpty == true;
       for (final source in catalog) {
+        if ((withdrawn[source.gameId] ?? 0) >= source.version) continue;
         if (!mounted) return;
         setState(() {
           _syncStatus = 'Загружаем «${source.name}»…';

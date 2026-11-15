@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('larpDesktop', {
   githubStatus: () => ipcRenderer.invoke('larp:github-status'),
   githubConnect: (token) => ipcRenderer.invoke('larp:github-connect', token),
   githubDisconnect: () => ipcRenderer.invoke('larp:github-disconnect'),
+  publications: () => ipcRenderer.invoke('larp:publications'),
+  unpublish: (id) => ipcRenderer.invoke('larp:unpublish', id),
   async publish(pub, onProgress) {
     const listener = (_event, data) => { try { onProgress(data); } catch { /* интерфейс мог закрыться */ } };
     ipcRenderer.on('larp:publish-progress', listener);

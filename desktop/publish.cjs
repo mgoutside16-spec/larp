@@ -98,32 +98,91 @@ const gitBlobSha = (bytes) => crypto.createHash('sha1')
 
 const json = (value) => Buffer.from(`${JSON.stringify(value, null, 1)}\n`, 'utf8');
 
-async function publish(token, pub, onProgress = () => {}) {
-  const id = String(pub.gameId).toLowerCase();
+function gameId(value) {
+  const id = String(value).toLowerCase();
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) throw new PublishError('Некорректный идентификатор игры.');
+  return id;
+}
+
+async function readBranch(token) {
+  const base = '/repos/' + OWNER + '/' + REPO + '/git';
+  const parent = (await gh(token, 'GET', base + '/ref/heads/' + BRANCH))?.object.sha;
+  const existing = new Map();
+  if (!parent) return {parent, existing, catalog: [], withdrawn: {}};
+  const commit = await gh(token, 'GET', base + '/commits/' + parent);
+  const tree = await gh(token, 'GET', base + '/trees/' + commit.tree.sha + '?recursive=1');
+  if (!tree || tree.truncated || !Array.isArray(tree.tree)) throw new PublishError('Не удалось прочитать полный список файлов GitHub.');
+  for (const entry of tree.tree) if (entry.type === 'blob') existing.set(entry.path, entry.sha);
+  async function readJson(name, fallback) {
+    const sha = existing.get(name);
+    if (!sha) return fallback;
+    const blob = await gh(token, 'GET', base + '/blobs/' + sha);
+    return JSON.parse(Buffer.from(blob.content, 'base64').toString('utf8'));
+  }
+  const catalog = await readJson('catalog.json', []);
+  const withdrawn = await readJson('withdrawn.json', {});
+  if (!Array.isArray(catalog) || catalog.some((row) => !row || typeof row.game_id !== 'string' ||
+    !Number.isSafeInteger(row.version) || row.version < 1) ||
+    withdrawn === null || typeof withdrawn !== 'object' || Array.isArray(withdrawn) ||
+    Object.entries(withdrawn).some(([id, version]) => gameId(id) !== id || !Number.isSafeInteger(version) || version < 1)) {
+    throw new PublishError('Список публикаций GitHub повреждён.');
+  }
+  return {parent, existing, catalog, withdrawn};
+}
+
+async function writeBranch(token, parent, entries, message) {
+  const base = '/repos/' + OWNER + '/' + REPO + '/git';
+  const tree = await gh(token, 'POST', base + '/trees', {
+    tree: [...entries].map(([path, sha]) => ({path, mode: '100644', type: 'blob', sha})),
+  });
+  const commit = await gh(token, 'POST', base + '/commits', {
+    message, tree: tree.sha, parents: parent ? [parent] : [],
+  });
+  if (parent) await gh(token, 'PATCH', base + '/refs/heads/' + BRANCH, {sha: commit.sha, force: false});
+  else await gh(token, 'POST', base + '/refs', {ref: 'refs/heads/' + BRANCH, sha: commit.sha});
+}
+
+async function dispatch(token, payload) {
+  await gh(token, 'POST', '/repos/' + OWNER + '/' + REPO + '/dispatches', {event_type: 'publish', client_payload: payload});
+}
+
+async function publications(token) {
+  return (await readBranch(token)).catalog;
+}
+
+async function unpublish(token, value) {
+  const id = gameId(value);
+  await checkToken(token);
+  const {parent, existing, catalog, withdrawn} = await readBranch(token);
+  const row = catalog.find((item) => item.game_id === id);
+  if (row) {
+    const entries = new Map([...existing].filter(([file]) => !file.startsWith(id + '/')));
+    withdrawn[id] = Math.max(withdrawn[id] || 0, row.version);
+    for (const [name, contents] of [['catalog.json', catalog.filter((item) => item.game_id !== id)], ['withdrawn.json', withdrawn]]) {
+      const blob = await gh(token, 'POST', '/repos/' + OWNER + '/' + REPO + '/git/blobs', {content: json(contents).toString('base64'), encoding: 'base64'});
+      entries.set(name, blob.sha);
+    }
+    await writeBranch(token, parent, entries, 'Снятие публикации ' + id);
+  }
+  if (row || Object.hasOwn(withdrawn, id)) {
+    await dispatch(token, {game: id, withdrawn: true});
+    return true;
+  }
+  return false;
+}
+
+async function publish(token, pub, onProgress = () => {}) {
+  const id = gameId(pub.gameId);
   onProgress({stage: 'Проверяем доступ к GitHub…', percent: 0});
   await checkToken(token);
-
-  // Что уже опубликовано.
-  const ref = await gh(token, 'GET', `/repos/${OWNER}/${REPO}/git/ref/heads/${BRANCH}`);
-  const existing = new Map();
-  let catalog = [];
-  if (ref) {
-    const commit = await gh(token, 'GET', `/repos/${OWNER}/${REPO}/git/commits/${ref.object.sha}`);
-    const tree = await gh(token, 'GET', `/repos/${OWNER}/${REPO}/git/trees/${commit.tree.sha}?recursive=1`);
-    for (const entry of tree.tree || []) if (entry.type === 'blob') existing.set(entry.path, entry.sha);
-    const catalogSha = existing.get('catalog.json');
-    if (catalogSha) {
-      const blob = await gh(token, 'GET', `/repos/${OWNER}/${REPO}/git/blobs/${catalogSha}`);
-      try { catalog = JSON.parse(Buffer.from(blob.content, 'base64').toString('utf8')); } catch { catalog = []; }
-      if (!Array.isArray(catalog)) catalog = [];
-    }
-  }
+  const {parent, existing, catalog: currentCatalog, withdrawn} = await readBranch(token);
+  let catalog = currentCatalog;
   const knownShas = new Set(existing.values());
   // Версия опубликованной игры только растёт, иначе телефоны не увидят обновление.
   const previous = catalog.find((row) => row && row.game_id === id);
-  if (previous && Number(previous.version) >= pub.version) {
-    pub.version = Number(previous.version) + 1;
+  const lastVersion = Math.max(Number(previous?.version || 0), withdrawn[id] || 0);
+  if (lastVersion >= pub.version) {
+    pub.version = lastVersion + 1;
     pub.manifest = {...pub.manifest, version: pub.version};
   }
 
@@ -169,17 +228,8 @@ async function publish(token, pub, onProgress = () => {}) {
   catalog.sort((a, b) => String(a.game_id).localeCompare(String(b.game_id)));
   entries.set('catalog.json', await upload(json(catalog)));
 
-  // Одна свежая версия без истории: ветка не разрастается старыми видео.
-  const tree = await gh(token, 'POST', `/repos/${OWNER}/${REPO}/git/trees`, {
-    tree: [...entries].map(([path, sha]) => ({path, mode: '100644', type: 'blob', sha})),
-  });
-  const commit = await gh(token, 'POST', `/repos/${OWNER}/${REPO}/git/commits`, {
-    message: `Публикация «${pub.name}», версия ${pub.version}`, tree: tree.sha, parents: [],
-  });
-  if (ref) await gh(token, 'PATCH', `/repos/${OWNER}/${REPO}/git/refs/heads/${BRANCH}`, {sha: commit.sha, force: true});
-  else await gh(token, 'POST', `/repos/${OWNER}/${REPO}/git/refs`, {ref: `refs/heads/${BRANCH}`, sha: commit.sha});
-  // Запускаем сборку сайта (workflow pages.yml) — push в ветку games её не запускает.
-  await gh(token, 'POST', `/repos/${OWNER}/${REPO}/dispatches`, {event_type: 'publish', client_payload: {game: id, version: pub.version}});
+  await writeBranch(token, parent, entries, 'Публикация «' + pub.name + '», версия ' + pub.version);
+  await dispatch(token, {game: id, version: pub.version});
   if (tempBranch) {
     try { await gh(token, 'DELETE', `/repos/${OWNER}/${REPO}/git/refs/heads/${tempBranch}`); } catch { /* временная ветка не мешает */ }
   }
@@ -206,4 +256,4 @@ async function waitLive(gameId, version, timeoutMs = 8 * 60 * 1000, onProgress =
   return false;
 }
 
-module.exports = {publish, checkToken, waitLive, PublishError, SITE, OWNER, REPO};
+module.exports = {publish, unpublish, publications, checkToken, waitLive, PublishError, SITE, OWNER, REPO};

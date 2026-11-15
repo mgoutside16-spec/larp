@@ -4,7 +4,7 @@ import './template-panel.css';
 import './account.css';
 import {mountTemplatePanel} from './template-panel';
 import {Storage,stageMedia,type WorkshopStorage} from './storage';
-import { importPackage, makePackage, readPackage, mime, makePublication, markPublished } from './packages';
+import { importPackage, makePackage, readPackage, mime, makePublication, markPublished, deleteWorkshopProject } from './packages';
 import { download, excel, pdf, types, locationName } from './exports';
 import { type Asset, type Block, type Game, type Kind, type Material, KINDS } from './types';
 import { escapeHtml as e, safeHtml } from './richtext';
@@ -15,9 +15,9 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 let store:WorkshopStorage,game:Game|null=null,games:Game[]=[],page='materials',query='',location='all',sort='modified',direction=-1,editorDirty=false;
 interface LocalRuntime{identity:{user_id:string;email:string;display_name:string;is_admin:boolean}}
 let account:LocalRuntime|null=null,templateDispose:(()=>void)|undefined,templateTicket=0;
-const publishing=false;
+let deletingProject=false;
 const templateDirty=()=>{const panel=document.querySelector<HTMLElement>('#template-panel');return panel?.dataset.dirty==='true'||panel?.dataset.busy==='true';};
-const hasWork=()=>publishing||editorDirty||templateDirty()||!!document.querySelector('dialog[open]')||!!document.activeElement?.matches('input,textarea,select,[contenteditable=true]');
+const hasWork=()=>deletingProject||!!publishStage||editorDirty||templateDirty()||!!document.querySelector('dialog[open]')||!!document.activeElement?.matches('input,textarea,select,[contenteditable=true]');
 const channel=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('larp-studio-updates'):null;
 const $=<T extends HTMLElement=HTMLElement>(selector:string,root:ParentNode=document)=>root.querySelector<T>(selector)!;
 const btn=(text:string,action:string,kind='',ico='')=>`<button type="button" class="button ${kind}" data-action="${action}">${ico?icon(ico):''}${text}</button>`;
@@ -39,7 +39,7 @@ function render(){
       ['overview','folder','Игровые проекты'],['materials','file','Материалы'],['groups','layers','Группы'],
       ['print','print','Коды и печать'],['builds','box','Сборки и версии'],
     ].map(([id,ico,label])=>`<button type="button" data-page="${id}" class="nav-item ${page===id?'active':''}">${icon(ico)}${label}${id==='materials'&&game?`<span class="nav-count">${game.records.length}</span>`:''}</button>`).join('')}</nav>
-    <div class="sidebar-bottom"><button type="button" class="nav-item ${page==='help'?'active':''}" data-page="help">${icon('help')}О мастерской и данных</button><div class="brand-group"><img src="${new URL(`${import.meta.env.BASE_URL}brand/bez-pravil.png`,window.location.href).href}" alt="Эмблема Без правил"><div><strong>Без правил</strong><small>Мастерская группа</small></div></div><div class="version">Мир Снов для Граней <span>1.1.0</span></div></div>
+    <div class="sidebar-bottom"><button type="button" class="nav-item ${page==='help'?'active':''}" data-page="help">${icon('help')}О мастерской и данных</button><div class="brand-group"><img src="${new URL(`${import.meta.env.BASE_URL}brand/bez-pravil.png`,window.location.href).href}" alt="Эмблема Без правил"><div><strong>Без правил</strong><small>Мастерская группа</small></div></div><div class="version">Мир Снов для Граней <span>1.1.2</span></div></div>
   </aside><div class="workspace"><header class="topbar"><div class="game-switch"><label for="project-switch">Текущая игра</label><select id="project-switch" aria-label="Текущая игра">${!games.length?'<option>Создайте первый проект</option>':games.map(g=>`<option value="${g.id}" ${game?.id===g.id?'selected':''}>${e(g.name)}</option>`).join('')}</select></div>${btn('Новый проект','new-project','secondary','plus')}</header>
     <main id="content"></main><footer class="workspace-footer"><span>${icon('lock')}Игры хранятся на этом компьютере</span><button type="button" data-page="help">О данных и резервных копиях</button></footer></div>`;
   $('#project-switch').addEventListener('change',()=>perform(async()=>{if(templateDirty()&&!await confirmAction('Сменить проект?','Есть несохранённые изменения шаблона или выгрузка ещё готовится.','Переключить')){$<HTMLSelectElement>('#project-switch').value=game?.id||'';return;}game=await store.game($<HTMLSelectElement>('#project-switch').value);query='';location='all';await store.preference('last-game',game.id);render();}));
@@ -57,7 +57,7 @@ function renderPage(){
   if(page==='print'){content.innerHTML=printPage()+`<div id="template-panel"></div>`;void perform(async()=>{const dispose=await mountTemplatePanel($('#template-panel'),store,game!.id);if(ticket!==templateTicket)dispose();else templateDispose=dispose;});return;}
   if(page==='builds'){content.innerHTML=buildsPage();return;}
   content.innerHTML=heading('Материалы игры','Каждая запись — находка, история или подсказка для игрока.',btn('Новая запись','new-record','primary','plus'))+
-    `<section class="materials-panel"><div class="table-toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Название, код или группа" aria-label="Поиск записей" value="${e(query)}"></label><select id="location-filter" aria-label="Фильтр по группе"><option value="all">Все группы</option><option value="none" ${location==='none'?'selected':''}>Без группы</option>${game.locations.map(l=>`<option value="${l.id}" ${location===String(l.id)?'selected':''}>${e(l.name)}</option>`).join('')}</select><span id="record-count" class="record-count"></span></div><div class="table-scroll"><table class="records"><thead><tr>${[['code','Код'],['title','Название записи'],['location','Группа'],['types','Материалы'],['modified','Изменено']].map(([key,label])=>`<th><button type="button" data-sort="${key}">${label}${sort===key?` <span>${direction===1?'↑':'↓'}</span>`:''}</button></th>`).join('')}<th><span class="sr-only">Действия</span></th></tr></thead><tbody id="record-rows"></tbody></table></div><div id="table-empty"></div></section><div class="storage-note">${icon('check')}<div><strong>Работайте в своём темпе.</strong> Проекты сохраняются в аккаунте, доступны на других компьютерах и участникам команды. <button type="button" data-action="package">Скачать резервную копию</button></div></div>`;
+    `<section class="materials-panel"><div class="table-toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Название, код или группа" aria-label="Поиск записей" value="${e(query)}"></label><select id="location-filter" aria-label="Фильтр по группе"><option value="all">Все группы</option><option value="none" ${location==='none'?'selected':''}>Без группы</option>${game.locations.map(l=>`<option value="${l.id}" ${location===String(l.id)?'selected':''}>${e(l.name)}</option>`).join('')}</select><span id="record-count" class="record-count"></span></div><div class="table-scroll"><table class="records"><thead><tr>${[['code','Код'],['title','Название записи'],['location','Группа'],['types','Материалы'],['modified','Изменено']].map(([key,label])=>`<th><button type="button" data-sort="${key}">${label}${sort===key?` <span>${direction===1?'↑':'↓'}</span>`:''}</button></th>`).join('')}<th><span class="sr-only">Действия</span></th></tr></thead><tbody id="record-rows"></tbody></table></div><div id="table-empty"></div></section><div class="storage-note">${icon('check')}<div><strong>Работайте в своём темпе.</strong> Проекты и материалы сохраняются на этом компьютере. <button type="button" data-action="package">Скачать резервную копию</button></div></div>`;
   $('#search').addEventListener('input',()=>{query=$<HTMLInputElement>('#search').value;renderRows();});
   $('#location-filter').addEventListener('change',()=>{location=$<HTMLSelectElement>('#location-filter').value;renderRows();});renderRows();
 }
@@ -86,7 +86,7 @@ function buildsPage(){const g=needGame();return heading('Сборки и вер�
   publishPanel(g)+`<section class="package-intro"><div class="package-symbol">${icon('download')}</div><div><h2>${desktop()?'Запасной способ: файл игры':'Как передать игру игрокам'}</h2><p>Нажмите «Создать игровой пакет» и отправьте файл .rpgpack игрокам любым способом: мессенджер, облачный диск, флешка. В приложении игрока: «Импортировать» → выбрать файл. После этого игра работает без интернета. Если вы изменили материалы, создайте новый пакет и разошлите его снова — коды не меняются.</p><div class="inline-actions"><a class="button primary" href="https://mgoutside16-spec.github.io/larp/games/app/Mir-Snov-arm64.apk">${icon('download')}Приложение игрока · 22 МБ</a><a class="button" href="https://mgoutside16-spec.github.io/larp/games/app/Mir-Snov.apk">Совместимая версия для старых телефонов</a></div><div class="player-qr"><img src="${import.meta.env.BASE_URL}player/qr-download.png" width="180" height="180" alt="QR-код для скачивания приложения игрока"><div><strong>Скачать на телефон</strong><p>Наведите камеру телефона. Код остаётся прежним после обновлений.</p><a href="https://mgoutside16-spec.github.io/larp/player/">Страница скачивания</a> · <a href="${import.meta.env.BASE_URL}player/qr-download.png" download="LARP-QR.png">Скачать QR-код</a></div></div></div></section>`+
   (desktop()?`<section class="package-intro"><div class="package-symbol">${icon('video')}</div><div><h2>Уменьшить материалы для телефонов</h2><p>Сожмёт уже добавленные видео, большие картинки и WAV в этой игре: видео — до 720p. Коды и тексты не меняются. Новые файлы сжимаются автоматически при добавлении, если включена галочка в окне записи.</p><div class="inline-actions">${btn('Сжать материалы игры','compress-all','','video')}</div></div></section>`:'')+
   `<section class="package-intro"><div class="package-symbol">${icon('box')}</div><div><h2>Одна игра — один .rpgpack</h2><p>Тексты, медиа, группы и коды. Пакет подходит для резервной копии и переноса на другое устройство.</p><div class="inline-actions">${btn('Импортировать пакет','import','','upload')}${btn('Проверить пакет','check-package','quiet','check')}</div></div></section><h2 class="section-title">История сборок <span>${g.builds.length}</span></h2><section class="materials-panel"><div class="table-scroll"><table><thead><tr><th>Версия</th><th>Создана</th><th>Файл</th></tr></thead><tbody>${g.builds.map(b=>`<tr><td><span class="version-badge">v${b.version}</span></td><td>${date(b.created)}</td><td>${e(b.filename)}</td></tr>`).join('')}</tbody></table></div>${g.builds.length?'':'<div class="empty-table"><h2>Первая сборка ещё впереди</h2><p>Когда материалы готовы, создайте игровой пакет.</p></div>'}</section><p class="page-footnote">Импорт открывается отдельным проектом. Текущая игра сохраняется. Файл .rpgpack также можно открыть в приложении игрока без сети.</p>`;}
-type DesktopPublish={githubStatus():Promise<{connected:boolean;site:string}>;githubConnect(token:string):Promise<boolean>;githubDisconnect():Promise<boolean>;publish(pub:unknown,onProgress:(p:{stage:string;percent:number})=>void):Promise<{version:number;live:boolean}>};
+type DesktopPublish={publications():Promise<{game_id:string;name:string}[]>;unpublish(id:string):Promise<boolean>;githubStatus():Promise<{connected:boolean;site:string}>;githubConnect(token:string):Promise<boolean>;githubDisconnect():Promise<boolean>;publish(pub:unknown,onProgress:(p:{stage:string;percent:number})=>void):Promise<{version:number;live:boolean}>};
 const bridge=()=>(window as unknown as {larpDesktop?:DesktopPublish}).larpDesktop;
 let github:{connected:boolean;site:string}|null=null,publishStage='';
 const TOKEN_URL='https://github.com/settings/personal-access-tokens/new?name=Mir+Snov+publish&description=%D0%9F%D1%83%D0%B1%D0%BB%D0%B8%D0%BA%D0%B0%D1%86%D0%B8%D1%8F+%D0%B8%D0%B3%D1%80+%C2%AB%D0%9C%D0%B8%D1%80+%D0%A1%D0%BD%D0%BE%D0%B2%C2%BB&target_name=mgoutside16-spec&expires_in=366&contents=write';
@@ -106,7 +106,7 @@ function githubDialog(){
     catch(error){$('.dialog-error',d).textContent=((error as Error).message||'').replace(/^Error invoking remote method '[^']+': (Error: )?/,'');submit.disabled=false;}});
 }
 async function publishGame(g:Game){
-  if(publishStage)return;
+  if(publishStage||deletingProject)return;
   publishStage='Готовим материалы…';render();
   try{
     const pub=await makePublication(store,g.id);
@@ -116,7 +116,43 @@ async function publishGame(g:Game){
     toast(result.live?`Версия ${result.version} опубликована. Игроки получат её при подключении к интернету.`:`Версия ${result.version} отправлена. Сайт ещё обновляется — игроки получат её в течение нескольких минут.`);
   }catch(error){publishStage='';render();throw new Error(((error as Error).message||'').replace(/^Error invoking remote method '[^']+': (Error: )?/,'')||'Не удалось опубликовать игру.');}
 }
-function helpPage(){return heading('Мастерская «Без правил»','Подготовка игр, кодов и материалов для полигона.')+`<article class="help-content"><h2>Где хранятся игры</h2><p>Все проекты, медиа, группы и шаблоны карточек хранятся на этом компьютере. Интернет для работы не нужен. Обновление программы игры не удаляет.</p><h2>Резервная копия</h2><p>В разделе «Сборки и версии» создайте .rpgpack и сохраните его в двух местах, например на флешке и в облачном диске. Шаблоны печатных карточек в пакет не входят: сохраните исходные изображения карточек отдельно.</p><h2>Сжатие материалов</h2><p>${desktop()?'При добавлении видео, звука и картинок мастерская уменьшает их размер для телефонов: видео — до 720p, большие изображения — до 2048 пикселей по длинной стороне, WAV — в сжатый звук. Оригиналы на диске не меняются. Переключатель — в окне записи.':'Сжатие видео доступно в программе для Windows.'}</p><h2>Группы видений</h2><p>Создавайте свои группы в каждом проекте: например, «Сны» и «ЭП».</p><h2>Свои карточки для печати</h2><p>В разделе «Коды и печать» загрузите изображение карточки, выберите группу и перетащите код в нужное место. Настройте размер, цвет и шрифт. «Скачать карточки ZIP» создаст отдельные PNG с кодами в исходном разрешении и с отметкой 300 dpi.</p><h2>Постоянные коды</h2><p>Код выдаётся автоматически и не меняется при редактировании. Удалённые коды остаются в истории и не выдаются повторно.</p></article>`;}
+async function deleteProject(g:Game){
+  if(deletingProject||publishStage)return;
+  if(!await confirmAction('Удалить игровой проект?',`«${g.name}» и его материалы будут удалены из мастерской. Если у проекта своя публикация, она будет снята. Сначала скачайте резервную копию, если игра ещё нужна.`))return;
+  if(deletingProject||publishStage)return;
+  deletingProject=true;
+  try{
+    const api=bridge();
+    await deleteWorkshopProject(store,g.id,api&&{connected:!!github?.connected,unpublish:api.unpublish});
+    await changed();
+    toast('Проект удалён.');
+  }finally{
+    deletingProject=false;
+  }
+}
+
+async function managePublications(){
+  if(!github?.connected){githubDialog();return;}
+  const api=bridge()!;
+  const catalog=await api.publications();
+  if(!catalog.length){toast('На GitHub нет опубликованных игр.');return;}
+  const d=dialog(`<form class="dialog-form"><h2>Публикации для игроков</h2><label class="field">Игра<select name="publication" required><option value="">Выберите игру</option>${catalog.map(row=>`<option value="${e(row.game_id)}">${e(row.name)} · ${e(row.game_id)}</option>`).join('')}</select></label><p class="dialog-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button" data-cancel>Отмена</button><button type="submit" class="button primary">Снять публикацию</button></div></form>`);
+  $('[data-cancel]',d).addEventListener('click',()=>d.close());
+  $('form',d).addEventListener('submit',async event=>{
+    event.preventDefault();
+    const submit=$<HTMLButtonElement>('[type=submit]',d);
+    submit.disabled=true;
+    try{
+      await api.unpublish($<HTMLSelectElement>('select',d).value);
+      d.close();
+      toast('Публикация снята. Список игр обновится после выкладки сайта.');
+    }catch(error){
+      $('.dialog-error',d).textContent=(error as Error).message;
+      submit.disabled=false;
+    }
+  });
+}
+function helpPage(){return heading('Мастерская «Без правил»','Подготовка игр, кодов и материалов для полигона.')+`<article class="help-content">${desktop()?`<h2>Публикации для игроков</h2><p>Здесь можно снять публикацию проекта, даже если он уже удалён из мастерской.</p>${btn('Открыть список публикаций','manage-publications','secondary')}`:''}<h2>Где хранятся игры</h2><p>Все проекты, медиа, группы и шаблоны карточек хранятся на этом компьютере. Интернет для работы не нужен. Обновление программы игры не удаляет.</p><h2>Резервная копия</h2><p>В разделе «Сборки и версии» создайте .rpgpack и сохраните его в двух местах, например на флешке и в облачном диске. Шаблоны печатных карточек в пакет не входят: сохраните исходные изображения карточек отдельно.</p><h2>Сжатие материалов</h2><p>${desktop()?'При добавлении видео, звука и картинок мастерская уменьшает их размер для телефонов: видео — до 720p, большие изображения — до 2048 пикселей по длинной стороне, WAV — в сжатый звук. Оригиналы на диске не меняются. Переключатель — в окне записи.':'Сжатие видео доступно в программе для Windows.'}</p><h2>Группы видений</h2><p>Создавайте свои группы в каждом проекте: например, «Сны» и «ЭП».</p><h2>Свои карточки для печати</h2><p>В разделе «Коды и печать» загрузите изображение карточки, выберите группу и перетащите код в нужное место. Настройте размер, цвет и шрифт. «Скачать карточки ZIP» создаст отдельные PNG с кодами в исходном разрешении и с отметкой 300 dpi.</p><h2>Постоянные коды</h2><p>Код выдаётся автоматически и не меняется при редактировании. Удалённые коды остаются в истории и не выдаются повторно.</p></article>`;}
 
 function dialog(content:string,className=''):HTMLDialogElement {
   const d=document.createElement('dialog');d.className=className;d.innerHTML=content;document.body.append(d);
@@ -261,10 +297,11 @@ app.addEventListener('click',ev=>{
     if(action==='new-record'){await editor();return;}
     if(action==='edit-record'){await editor(id);return;}
     if(action==='persist'){const persistent=await navigator.storage?.persist?.();toast(persistent?'Браузер выделил постоянное хранилище.':'Браузер принимает это решение автоматически. Продолжайте сохранять резервные пакеты.');return;}
+    if(action==='manage-publications'){await managePublications();return;}
     const g=needGame();
     if(action==='open-project'){game=await store.game(id!);await store.preference('last-game',game.id);page='materials';query='';location='all';render();return;}
     if(action==='copy-project'){game=await store.copy(g.id);await changed();toast('Создана независимая копия игры.');return;}
-    if(action==='delete-project'){if(await confirmAction('Удалить игровой проект?',`«${g.name}» и его материалы будут удалены из аккаунта. Сначала скачайте резервную копию, если игра ещё нужна.`)){try{await store.deleteGame(g.id);}catch(error){await refresh();throw error;}game=(await store.list())[0]||null;await changed();toast('Проект удалён.');}return;}
+    if(action==='delete-project'){await deleteProject(g);return;}
     if(action==='delete-group'){if(await confirmAction('Удалить группу?','Записи сохранятся и перейдут в «Без группы».')){await store.deleteGroup(g.id,Number(id));location='all';await changed();}return;}
     const row=g.records.find(r=>r.id===id);
     if(action==='copy-code'){await navigator.clipboard.writeText(row!.code);toast(`Код ${row!.code} скопирован.`);return;}

@@ -332,6 +332,8 @@ class UpdateClient {
     switch (name) {
       case 'get_player_catalog':
         path = 'games/catalog.json';
+      case 'get_player_withdrawals':
+        path = 'games/withdrawn.json';
       case 'get_player_snapshot':
         final id = body['p_game_id'];
         if (id is! String || !_gameId.hasMatch(id)) _invalid();
@@ -388,6 +390,24 @@ class UpdateClient {
   Never _invalid() => throw const PlayerException(
     'Описание игры повреждено. Предыдущая игра сохранена.',
   );
+
+  Future<Map<String, int>> withdrawals() async {
+    final raw = await _rpc('get_player_withdrawals', {});
+    if (raw == null) return {};
+    if (raw is! Map<String, dynamic>) _invalid();
+    final result = <String, int>{};
+    for (final entry in raw.entries) {
+      final version = entry.value;
+      if (!_gameId.hasMatch(entry.key) ||
+          entry.key != entry.key.toLowerCase() ||
+          version is! int ||
+          version < 1) {
+        _invalid();
+      }
+      result[entry.key] = version;
+    }
+    return result;
+  }
 
   Future<List<CatalogGame>> catalog() async {
     final result = <CatalogGame>[];

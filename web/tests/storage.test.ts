@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import { Storage, allocateCode, stageMedia } from '../src/storage.ts';
+import { deleteWorkshopProject, markPublished } from '../src/packages.ts';
 
 async function storage() { return Storage.open(`test-${crypto.randomUUID()}`); }
 
@@ -83,4 +84,54 @@ test('deleting a location preserves records; duplication is independent', async 
 
 test('code exhaustion is explicit', () => {
   assert.throws(()=>allocateCode(Array.from({length:90000},(_,i)=>String(i+10000))),/исчерпан/);
+});
+
+test('deleting one project keeps the other project and its media after reopening', async () => {
+  const name = `test-${crypto.randomUUID()}`;
+  const store = await Storage.open(name);
+  const removed = await store.create('Удалённая');
+  const active = await store.create('Действующая');
+  const asset = await stageMedia(new File(['picture'], 'image.png', {type:'image/png'}));
+  for (const game of [removed, active]) {
+    await store.saveRecord(game.id, {
+      title: 'Запись', location_id: null, blocks: [{kind:'image', value:asset.path}],
+    }, [asset]);
+  }
+  await store.deleteGame(removed.id);
+  store.close();
+
+  const reopened = await Storage.open(name);
+  assert.deepEqual((await reopened.list()).map(game => game.id), [active.id]);
+  assert.equal(await (await reopened.media(active.id, asset.path)).blob.text(), 'picture');
+  await assert.rejects(() => reopened.media(removed.id, asset.path));
+  reopened.close();
+});
+
+test('deleting an imported publication uses the public ID and preserves the local project on failure', async () => {
+  const store = await storage();
+  const imported = await store.create('Импортированная');
+  const publicId = crypto.randomUUID();
+  await store.update(imported.id, game => { game.packageId = publicId; });
+  await markPublished(store, imported.id, 3, new Date().toISOString());
+
+  const calls: string[] = [];
+  let available = false;
+  const publication = {connected: true, unpublish: async (id: string) => {
+    calls.push(id);
+    if (!available) throw new Error('GitHub недоступен');
+    return true;
+  }};
+  await assert.rejects(deleteWorkshopProject(store, imported.id, publication), /GitHub/);
+  assert.equal((await store.game(imported.id)).packageId, publicId);
+
+  const copy = await store.create('Локальная копия');
+  await store.update(copy.id, game => { game.packageId = publicId; });
+  await markPublished(store, copy.id, 2, new Date().toISOString());
+  await deleteWorkshopProject(store, copy.id, publication);
+  assert.deepEqual(calls, [publicId]);
+  available = true;
+  await deleteWorkshopProject(store, imported.id, publication);
+  assert.deepEqual(calls, [publicId, publicId]);
+  assert.deepEqual(await store.list(), []);
+  store.close();
 });

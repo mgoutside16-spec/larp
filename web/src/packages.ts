@@ -157,3 +157,21 @@ export async function markPublished(store: WorkshopStorage,id: string,version: n
     current.builds.unshift({version,created,filename:'Опубликовано для игроков'});
   });
 }
+
+export async function deleteWorkshopProject(
+  store: WorkshopStorage,
+  id: string,
+  publication?: {connected: boolean; unpublish: (gameId: string) => Promise<boolean>},
+) {
+  if (publication) {
+    const game = await store.game(id);
+    const publicId = game.packageId.toLowerCase();
+    const wasPublished = game.builds.some(build => build.filename === 'Опубликовано для игроков');
+    if (wasPublished || (publication.connected && game.id === publicId)) {
+      const projects = await store.list();
+      const shared = projects.some(other => other.id !== id && other.packageId.toLowerCase() === publicId);
+      if (!shared) await publication.unpublish(publicId);
+    }
+  }
+  await store.deleteGame(id);
+}

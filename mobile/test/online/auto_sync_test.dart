@@ -45,6 +45,7 @@ void main() {
   late UpdateClient updates;
   late Map<String, dynamic> snapshot;
   late List<Map<String, dynamic>> catalog;
+  late Map<String, int> withdrawn;
   late Map<String, List<int>> media;
   late List<Uri> requests;
   late List<Map<String, dynamic>> catalogBodies;
@@ -70,6 +71,7 @@ void main() {
       'files': <Map<String, dynamic>>[],
     };
     catalog = [catalogRow()];
+    withdrawn = {};
     media = {};
     requests = [];
     catalogBodies = [];
@@ -90,6 +92,8 @@ void main() {
             (a, b) => (a['game_id'] as String).compareTo(b['game_id'] as String),
           );
         request.response.write(jsonEncode(rows));
+      } else if (request.uri.path == '/games/withdrawn.json') {
+        request.response.write(jsonEncode(withdrawn));
       } else if (request.uri.path == '/games/${fixtures.gameId}/snapshot.json') {
         expect(request.method, 'GET');
         request.response.write(jsonEncode(snapshot));
@@ -188,6 +192,35 @@ void main() {
     }
     return store.lockState(fixtures.gameId);
   }
+
+  test('withdrawal survives restart and preserves other games and local records', () async {
+    final source = (await updates.catalog()).single;
+    await updates.syncGame(source);
+    await store.installPackage(
+      await fixtures.package(root, fixtures.manifest(id: fixtures.secondId)),
+    );
+    expect(await store.games(), hasLength(2));
+
+    catalog = [];
+    withdrawn = {fixtures.gameId: 1};
+    await store.recordWithdrawals(await updates.withdrawals());
+    expect((await store.games()).map((game) => game.id), [fixtures.secondId]);
+
+    await store.close();
+    store = await PlayerStore.open(
+      Directory('${root.path}/store'),
+      factory: databaseFactoryFfi,
+      clock: () => now,
+    );
+    expect((await store.games()).map((game) => game.id), [fixtures.secondId]);
+    expect(await store.game(fixtures.gameId), isNotNull);
+    expect((await store.lookup(fixtures.gameId, '12345')).record, isNotNull);
+
+    await store.installPackage(
+      await fixtures.package(root, fixtures.manifest(version: 2)),
+    );
+    expect(await store.games(), hasLength(2));
+  });
 
   test('empty local library discovers every server catalog page without a known game', () async {
     catalog = List.generate(

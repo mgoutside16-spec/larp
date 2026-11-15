@@ -27,7 +27,7 @@ class PlayerStore {
       final db = await (factory ?? databaseFactory).openDatabase(
         '${root.path}/player.sqlite',
         options: OpenDatabaseOptions(
-          version: 2,
+          version: 3,
           onConfigure: (db) async {
             await db.execute('PRAGMA foreign_keys = ON');
           },
@@ -48,9 +48,11 @@ class PlayerStore {
               'CREATE TABLE opened (game_id TEXT NOT NULL,record_id TEXT NOT NULL,json TEXT NOT NULL,directory TEXT NOT NULL,opened_at INTEGER NOT NULL,PRIMARY KEY(game_id,record_id))',
             );
             await _createProfiles(db);
+            await _createWithdrawals(db);
           },
           onUpgrade: (db, oldVersion, newVersion) async {
             if (oldVersion < 2) await _createProfiles(db);
+            if (oldVersion < 3) await _createWithdrawals(db);
           },
         ),
       );
@@ -61,6 +63,25 @@ class PlayerStore {
       );
     }
   }
+
+  static Future<void> _createWithdrawals(DatabaseExecutor db) => db.execute(
+    'CREATE TABLE withdrawals (game_id TEXT PRIMARY KEY, version INTEGER NOT NULL)',
+  );
+
+  Future<void> recordWithdrawals(Map<String, int> versions) => _serial(() async {
+    await _db.transaction((tx) async {
+      for (final entry in versions.entries) {
+        await tx.rawInsert(
+          'INSERT OR IGNORE INTO withdrawals (game_id, version) VALUES (?, ?)',
+          [entry.key, entry.value],
+        );
+        await tx.rawUpdate(
+          'UPDATE withdrawals SET version = MAX(version, ?) WHERE game_id = ?',
+          [entry.value, entry.key],
+        );
+      }
+    });
+  });
 
   static Future<void> _createProfiles(DatabaseExecutor db) => db.execute(
     'CREATE TABLE profiles (game_id TEXT PRIMARY KEY,character_name TEXT NOT NULL,token TEXT NOT NULL,pending INTEGER NOT NULL DEFAULT 1 CHECK(pending IN (0,1)))',
@@ -128,6 +149,7 @@ class PlayerStore {
   Future<List<InstalledGame>> games() => _serial(
     () async => (await _db.query(
       'games',
+      where: 'NOT EXISTS (SELECT 1 FROM withdrawals w WHERE w.game_id = games.id AND w.version >= games.version)',
       orderBy: 'installed_at DESC,id',
     )).map(_installed).toList(growable: false),
   );

@@ -312,6 +312,8 @@ void main() {
           if (request.uri.path == '/games/catalog.json') {
             request.response.headers.contentType = ContentType.json;
             request.response.write('[]');
+          } else if (request.uri.path == '/games/withdrawn.json') {
+            request.response.statusCode = 404;
           } else if (request.uri.path == '/rest/v1/rpc/get_player_release') {
             request.response.headers.contentType = ContentType.json;
             request.response.write(

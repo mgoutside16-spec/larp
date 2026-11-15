@@ -1,11 +1,11 @@
 // Офлайн-игрок «Мир Снов»: оболочка приложения и скачанные материалы игр.
-const SHELL = 'mir-snov-shell-3';
+const SHELL = 'mir-snov-shell-4';
 const MEDIA = 'mir-snov-media';
 const SHELL_FILES = ['./', './index.html', './app.js', './app.css', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES.map((file) => new Request(file, {cache: 'reload'})))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
