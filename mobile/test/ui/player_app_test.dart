@@ -116,7 +116,6 @@ void main() {
       late HttpClient client;
       late UpdateClient updates;
       var catalogRequests = 0;
-      var registrationRequests = 0;
       var version = 1;
       await tester.runAsync(() async {
         final package = await createPackage();
@@ -186,7 +185,6 @@ void main() {
                 }),
               );
             case '/rest/v1/rpc/register_player':
-              registrationRequests++;
               request.response.write(
                 jsonEncode({
                   'participant_id': '33333333-3333-4333-8333-333333333333',
@@ -848,6 +846,9 @@ class _DelayedLookupStore implements PlayerStore {
 
   @override
   Future<List<InstalledGame>> games() => real.games();
+  @override
+  Future<void> recordWithdrawals(Map<String, int> versions) =>
+      real.recordWithdrawals(versions);
   @override
   Future<InstalledGame?> game(String id) => real.game(id);
   @override
