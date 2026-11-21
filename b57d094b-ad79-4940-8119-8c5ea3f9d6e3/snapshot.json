@@ -1,11 +1,11 @@
 {
  "game_id": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3",
  "project_id": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3",
- "version": 23,
+ "version": 24,
  "manifest": {
   "format_version": 1,
-  "version": 23,
-  "created": "2026-11-20T21:37:53.092Z",
+  "version": 24,
+  "created": "2026-11-21T15:34:41.424Z",
   "game": {
    "id": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3",
    "name": "Сыгровка \"Юльппё\"",
