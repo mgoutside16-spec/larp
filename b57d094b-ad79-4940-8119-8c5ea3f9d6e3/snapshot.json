@@ -1,11 +1,11 @@
 {
  "game_id": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3",
  "project_id": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3",
- "version": 24,
+ "version": 25,
  "manifest": {
   "format_version": 1,
-  "version": 24,
-  "created": "2026-11-21T15:34:41.424Z",
+  "version": 25,
+  "created": "2026-11-21T15:37:39.508Z",
   "game": {
    "id": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3",
    "name": "Сыгровка \"Юльппё\"",
@@ -1027,6 +1027,19 @@
      }
     ],
     "modified": "2026-11-15T11:31:39.338Z"
+   },
+   {
+    "id": "41c67bbc-2ee3-4b99-8775-2771bc302fea",
+    "code": "24980",
+    "title": "Проверка работы приложения для игроков",
+    "location_id": 1,
+    "blocks": [
+     {
+      "kind": "video",
+      "value": "media/bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8.mp4"
+     }
+    ],
+    "modified": "2026-11-21T15:36:41.284Z"
    }
   ],
   "reserved_codes": [
@@ -1099,7 +1112,8 @@
    "12026",
    "53741",
    "12631",
-   "11028"
+   "11028",
+   "24980"
   ],
   "checksums": {
    "media/b328d5ae524bc144ce0996c3d736047e27103e2e1f6e594bdeed76aa7f2bb667.jpg": "b328d5ae524bc144ce0996c3d736047e27103e2e1f6e594bdeed76aa7f2bb667",
@@ -1153,7 +1167,8 @@
    "media/6ead3c5b258c29c900a10b07a2da104de69ccbfabd44db5849c81f55394f6464.png": "6ead3c5b258c29c900a10b07a2da104de69ccbfabd44db5849c81f55394f6464",
    "media/b33a73c090d0ac561aaa15ace9606bb712996e5fb2e67b71c0230a7cce1e763a.png": "b33a73c090d0ac561aaa15ace9606bb712996e5fb2e67b71c0230a7cce1e763a",
    "media/b23d1b844679fb38a3cab9e9a54be09dd8deca4286f69f3da1acea9c535110a2.png": "b23d1b844679fb38a3cab9e9a54be09dd8deca4286f69f3da1acea9c535110a2",
-   "media/d27c28a2a25f06e537cb2787c002470fba93f0ef99352ae7f557a86a47d55e41.png": "d27c28a2a25f06e537cb2787c002470fba93f0ef99352ae7f557a86a47d55e41"
+   "media/d27c28a2a25f06e537cb2787c002470fba93f0ef99352ae7f557a86a47d55e41.png": "d27c28a2a25f06e537cb2787c002470fba93f0ef99352ae7f557a86a47d55e41",
+   "media/bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8.mp4": "bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8"
   }
  },
  "files": [
@@ -1468,6 +1483,12 @@
    "storage_path": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3/media/d27c28a2a25f06e537cb2787c002470fba93f0ef99352ae7f557a86a47d55e41.png",
    "size": 300165,
    "sha256": "d27c28a2a25f06e537cb2787c002470fba93f0ef99352ae7f557a86a47d55e41"
+  },
+  {
+   "path": "media/bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8.mp4",
+   "storage_path": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3/media/bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8.mp4",
+   "size": 10781857,
+   "sha256": "bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8"
   }
  ]
 }
