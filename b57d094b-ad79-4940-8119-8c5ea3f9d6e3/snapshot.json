@@ -1,11 +1,11 @@
 {
  "game_id": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3",
  "project_id": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3",
- "version": 25,
+ "version": 26,
  "manifest": {
   "format_version": 1,
-  "version": 25,
-  "created": "2026-11-21T15:37:39.508Z",
+  "version": 26,
+  "created": "2026-11-21T15:49:40.061Z",
   "game": {
    "id": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3",
    "name": "Сыгровка \"Юльппё\"",
@@ -1040,6 +1040,110 @@
      }
     ],
     "modified": "2026-11-21T15:36:41.284Z"
+   },
+   {
+    "id": "26d8af0e-2afe-4945-bfbb-4c29d3c583a2",
+    "code": "10357",
+    "title": "Зависть",
+    "location_id": 1,
+    "blocks": [
+     {
+      "kind": "audio",
+      "value": "media/95b2e1e13b24fa8ca3e7585ecdd591885c735fffb42adbb7e93afdcfdc4a78f4.mp3"
+     }
+    ],
+    "modified": "2026-11-21T15:38:07.537Z"
+   },
+   {
+    "id": "1df3e3c3-fa94-45c8-938e-8c231fce4cd4",
+    "code": "79153",
+    "title": "Гордыня",
+    "location_id": 1,
+    "blocks": [
+     {
+      "kind": "audio",
+      "value": "media/26e3f10d73ba0168b4d51bb178dee740fe981ca758ef21a16f938cde9cb7f3d5.mp3"
+     }
+    ],
+    "modified": "2026-11-21T15:38:20.646Z"
+   },
+   {
+    "id": "a27e07dc-154d-41ff-91db-1a5c8b50616c",
+    "code": "99315",
+    "title": "Обжорство",
+    "location_id": 1,
+    "blocks": [
+     {
+      "kind": "audio",
+      "value": "media/13181850187e2f759f6edc11e00e9a0e96deeb782e565256342b9041819df7e8.mp3"
+     }
+    ],
+    "modified": "2026-11-21T15:38:34.162Z"
+   },
+   {
+    "id": "50140bf8-7ad7-4636-a2bc-a7ba4c846c88",
+    "code": "82658",
+    "title": "Похоть",
+    "location_id": 1,
+    "blocks": [
+     {
+      "kind": "audio",
+      "value": "media/9908849032beaddca04aa46d6d93bc3d9894c29742b6486e9361a28836e95ef5.mp3"
+     }
+    ],
+    "modified": "2026-11-21T15:38:47.809Z"
+   },
+   {
+    "id": "3c0bdb80-a0ff-41ce-afe9-cbb084066faf",
+    "code": "54283",
+    "title": "Лень",
+    "location_id": 1,
+    "blocks": [
+     {
+      "kind": "audio",
+      "value": "media/ea588367f2b03faddeca4dc89b1432f20b8cc7dabe5498baf690f038ffccc94e.mp3"
+     }
+    ],
+    "modified": "2026-11-21T15:39:01.999Z"
+   },
+   {
+    "id": "bb7937c1-b636-4d93-bc95-1f342e8ad8f2",
+    "code": "54140",
+    "title": "Жадность",
+    "location_id": 1,
+    "blocks": [
+     {
+      "kind": "audio",
+      "value": "media/28bf56cb21ef0512c46784e1c1873e8a50c20349a8cc2d620e16d62abf358ae2.mp3"
+     }
+    ],
+    "modified": "2026-11-21T15:39:14.390Z"
+   },
+   {
+    "id": "623293ad-b258-40f4-a197-ca32e85048da",
+    "code": "91866",
+    "title": "Гнев",
+    "location_id": 1,
+    "blocks": [
+     {
+      "kind": "audio",
+      "value": "media/7958ee6b65ae69622f29301d4cfbb2796ee84ab8ec1bbe9d4e44ba9300d39f97.mp3"
+     }
+    ],
+    "modified": "2026-11-21T15:39:31.827Z"
+   },
+   {
+    "id": "151eaca5-1e38-4e59-a0e2-b88a8308747d",
+    "code": "79261",
+    "title": "Стандартный маг",
+    "location_id": 2,
+    "blocks": [
+     {
+      "kind": "image",
+      "value": "media/8b75e548b17b2c3a8680f937e205a8a09dc50158d3c2c62d4d6a2f47b6d96a1b.jpg"
+     }
+    ],
+    "modified": "2026-11-21T15:41:57.126Z"
    }
   ],
   "reserved_codes": [
@@ -1113,7 +1217,15 @@
    "53741",
    "12631",
    "11028",
-   "24980"
+   "24980",
+   "10357",
+   "79153",
+   "99315",
+   "82658",
+   "54283",
+   "54140",
+   "91866",
+   "79261"
   ],
   "checksums": {
    "media/b328d5ae524bc144ce0996c3d736047e27103e2e1f6e594bdeed76aa7f2bb667.jpg": "b328d5ae524bc144ce0996c3d736047e27103e2e1f6e594bdeed76aa7f2bb667",
@@ -1168,7 +1280,15 @@
    "media/b33a73c090d0ac561aaa15ace9606bb712996e5fb2e67b71c0230a7cce1e763a.png": "b33a73c090d0ac561aaa15ace9606bb712996e5fb2e67b71c0230a7cce1e763a",
    "media/b23d1b844679fb38a3cab9e9a54be09dd8deca4286f69f3da1acea9c535110a2.png": "b23d1b844679fb38a3cab9e9a54be09dd8deca4286f69f3da1acea9c535110a2",
    "media/d27c28a2a25f06e537cb2787c002470fba93f0ef99352ae7f557a86a47d55e41.png": "d27c28a2a25f06e537cb2787c002470fba93f0ef99352ae7f557a86a47d55e41",
-   "media/bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8.mp4": "bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8"
+   "media/bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8.mp4": "bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8",
+   "media/95b2e1e13b24fa8ca3e7585ecdd591885c735fffb42adbb7e93afdcfdc4a78f4.mp3": "95b2e1e13b24fa8ca3e7585ecdd591885c735fffb42adbb7e93afdcfdc4a78f4",
+   "media/26e3f10d73ba0168b4d51bb178dee740fe981ca758ef21a16f938cde9cb7f3d5.mp3": "26e3f10d73ba0168b4d51bb178dee740fe981ca758ef21a16f938cde9cb7f3d5",
+   "media/13181850187e2f759f6edc11e00e9a0e96deeb782e565256342b9041819df7e8.mp3": "13181850187e2f759f6edc11e00e9a0e96deeb782e565256342b9041819df7e8",
+   "media/9908849032beaddca04aa46d6d93bc3d9894c29742b6486e9361a28836e95ef5.mp3": "9908849032beaddca04aa46d6d93bc3d9894c29742b6486e9361a28836e95ef5",
+   "media/ea588367f2b03faddeca4dc89b1432f20b8cc7dabe5498baf690f038ffccc94e.mp3": "ea588367f2b03faddeca4dc89b1432f20b8cc7dabe5498baf690f038ffccc94e",
+   "media/28bf56cb21ef0512c46784e1c1873e8a50c20349a8cc2d620e16d62abf358ae2.mp3": "28bf56cb21ef0512c46784e1c1873e8a50c20349a8cc2d620e16d62abf358ae2",
+   "media/7958ee6b65ae69622f29301d4cfbb2796ee84ab8ec1bbe9d4e44ba9300d39f97.mp3": "7958ee6b65ae69622f29301d4cfbb2796ee84ab8ec1bbe9d4e44ba9300d39f97",
+   "media/8b75e548b17b2c3a8680f937e205a8a09dc50158d3c2c62d4d6a2f47b6d96a1b.jpg": "8b75e548b17b2c3a8680f937e205a8a09dc50158d3c2c62d4d6a2f47b6d96a1b"
   }
  },
  "files": [
@@ -1489,6 +1609,54 @@
    "storage_path": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3/media/bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8.mp4",
    "size": 10781857,
    "sha256": "bb5b30a9ec0f56d723ded85e8b94976c0f730b3427c582c7293c5fa8edf9b8e8"
+  },
+  {
+   "path": "media/95b2e1e13b24fa8ca3e7585ecdd591885c735fffb42adbb7e93afdcfdc4a78f4.mp3",
+   "storage_path": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3/media/95b2e1e13b24fa8ca3e7585ecdd591885c735fffb42adbb7e93afdcfdc4a78f4.mp3",
+   "size": 5529498,
+   "sha256": "95b2e1e13b24fa8ca3e7585ecdd591885c735fffb42adbb7e93afdcfdc4a78f4"
+  },
+  {
+   "path": "media/26e3f10d73ba0168b4d51bb178dee740fe981ca758ef21a16f938cde9cb7f3d5.mp3",
+   "storage_path": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3/media/26e3f10d73ba0168b4d51bb178dee740fe981ca758ef21a16f938cde9cb7f3d5.mp3",
+   "size": 6944499,
+   "sha256": "26e3f10d73ba0168b4d51bb178dee740fe981ca758ef21a16f938cde9cb7f3d5"
+  },
+  {
+   "path": "media/13181850187e2f759f6edc11e00e9a0e96deeb782e565256342b9041819df7e8.mp3",
+   "storage_path": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3/media/13181850187e2f759f6edc11e00e9a0e96deeb782e565256342b9041819df7e8.mp3",
+   "size": 7918135,
+   "sha256": "13181850187e2f759f6edc11e00e9a0e96deeb782e565256342b9041819df7e8"
+  },
+  {
+   "path": "media/9908849032beaddca04aa46d6d93bc3d9894c29742b6486e9361a28836e95ef5.mp3",
+   "storage_path": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3/media/9908849032beaddca04aa46d6d93bc3d9894c29742b6486e9361a28836e95ef5.mp3",
+   "size": 4324522,
+   "sha256": "9908849032beaddca04aa46d6d93bc3d9894c29742b6486e9361a28836e95ef5"
+  },
+  {
+   "path": "media/ea588367f2b03faddeca4dc89b1432f20b8cc7dabe5498baf690f038ffccc94e.mp3",
+   "storage_path": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3/media/ea588367f2b03faddeca4dc89b1432f20b8cc7dabe5498baf690f038ffccc94e.mp3",
+   "size": 5522602,
+   "sha256": "ea588367f2b03faddeca4dc89b1432f20b8cc7dabe5498baf690f038ffccc94e"
+  },
+  {
+   "path": "media/28bf56cb21ef0512c46784e1c1873e8a50c20349a8cc2d620e16d62abf358ae2.mp3",
+   "storage_path": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3/media/28bf56cb21ef0512c46784e1c1873e8a50c20349a8cc2d620e16d62abf358ae2.mp3",
+   "size": 4888767,
+   "sha256": "28bf56cb21ef0512c46784e1c1873e8a50c20349a8cc2d620e16d62abf358ae2"
+  },
+  {
+   "path": "media/7958ee6b65ae69622f29301d4cfbb2796ee84ab8ec1bbe9d4e44ba9300d39f97.mp3",
+   "storage_path": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3/media/7958ee6b65ae69622f29301d4cfbb2796ee84ab8ec1bbe9d4e44ba9300d39f97.mp3",
+   "size": 4288159,
+   "sha256": "7958ee6b65ae69622f29301d4cfbb2796ee84ab8ec1bbe9d4e44ba9300d39f97"
+  },
+  {
+   "path": "media/8b75e548b17b2c3a8680f937e205a8a09dc50158d3c2c62d4d6a2f47b6d96a1b.jpg",
+   "storage_path": "b57d094b-ad79-4940-8119-8c5ea3f9d6e3/media/8b75e548b17b2c3a8680f937e205a8a09dc50158d3c2c62d4d6a2f47b6d96a1b.jpg",
+   "size": 123268,
+   "sha256": "8b75e548b17b2c3a8680f937e205a8a09dc50158d3c2c62d4d6a2f47b6d96a1b"
   }
  ]
 }
