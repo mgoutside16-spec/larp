@@ -59,21 +59,7 @@ function runFfmpeg(args, onProgress) {
   });
 }
 
-const LONG_SIDE = 1280;
-const videoArgs = (input, output) => [
-  '-hide_banner', '-y', '-i', input,
-  '-map', '0:v:0', '-map', '0:a:0?',
-  '-vf', `scale=w='if(gte(iw,ih),min(${LONG_SIDE},iw),-2)':h='if(gte(iw,ih),-2,min(${LONG_SIDE},ih))'`,
-  '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26', '-profile:v', 'high', '-pix_fmt', 'yuv420p',
-  '-c:a', 'aac', '-b:a', '96k', '-ac', '2',
-  '-movflags', '+faststart', '-map_metadata', '-1',
-  output,
-];
-const audioArgs = (input, output) => [
-  '-hide_banner', '-y', '-i', input, '-vn',
-  '-c:a', 'aac', '-b:a', '128k', '-map_metadata', '-1',
-  output,
-];
+const {videoArgs, audioArgs} = require('./transcode-settings.cjs');
 
 ipcMain.handle('larp:transcode', async (event, {kind, name, bytes}) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'larp-'));
@@ -87,6 +73,7 @@ ipcMain.handle('larp:transcode', async (event, {kind, name, bytes}) => {
     await runFfmpeg(kind === 'video' ? videoArgs(input, output) : audioArgs(input, output),
       (p) => event.sender.send('larp:progress', {job, percent: p}));
     const result = fs.readFileSync(output);
+    if (!result.length) throw new Error('FFmpeg создал пустой медиафайл.');
     const base = path.basename(name, path.extname(name)) || 'media';
     return {name: `${base}.${outExt}`, bytes: result.buffer.slice(result.byteOffset, result.byteOffset + result.byteLength)};
   } finally {

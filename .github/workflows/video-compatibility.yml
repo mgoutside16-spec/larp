@@ -1,0 +1,34 @@
+name: Video compatibility regression
+on:
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - 'web/src/compress.ts'
+      - 'web/tests/compress.test.ts'
+      - '.github/workflows/video-compatibility.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  video-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install FFmpeg for real encoding tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version && ffprobe -version
+      - name: Test actual video encoding and decoding
+        run: node --test desktop/tests/transcode.test.cjs
+      - name: Test workshop including video fallbacks
+        working-directory: web
+        run: |
+          npm ci
+          npm test
+          npm run build

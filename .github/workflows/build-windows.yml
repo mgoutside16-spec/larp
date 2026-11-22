@@ -1,0 +1,58 @@
+name: Build Windows master installer
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - 'web/src/**'
+      - 'web/package*.json'
+      - '.github/workflows/build-windows.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Compile workshop
+        working-directory: web
+        run: |
+          npm ci
+          npm test
+          npm run build
+      - name: Bundle workshop and Windows FFmpeg
+        run: |
+          mkdir -p desktop/web desktop/bin
+          cp -a web/dist/. desktop/web/
+          rm -rf desktop/web/config.json desktop/web/play desktop/web/games
+          curl --fail --location --retry 3 \
+            https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-win32-x64.gz \
+            --output /tmp/ffmpeg-win32-x64.gz
+          gzip -dc /tmp/ffmpeg-win32-x64.gz > desktop/bin/ffmpeg.exe
+          test -s desktop/bin/ffmpeg.exe
+          curl --fail --location https://raw.githubusercontent.com/FFmpeg/FFmpeg/n6.1.1/LICENSE.md \
+            --output desktop/bin/ffmpeg.LICENSE
+      - name: Assemble Windows program
+        working-directory: desktop
+        run: |
+          npm ci
+          npx electron-builder --win dir --x64
+      - name: Create Russian-language installer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nsis
+          cd desktop
+          LANG=C.UTF-8 makensis installer.nsi
+          test -s release/Мир-Снов-для-Граней-установка-1.1.3.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mir-Snov-Windows-1.1.3
+          path: desktop/release/Мир-Снов-для-Граней-установка-1.1.3.exe
+          if-no-files-found: error
+          retention-days: 30
