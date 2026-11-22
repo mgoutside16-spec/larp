@@ -19,8 +19,11 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: Verify FFmpeg is available
-        run: ffmpeg -version && ffprobe -version
+      - name: Install FFmpeg for real encoding tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version && ffprobe -version
       - name: Test actual video encoding and decoding
         run: node --test desktop/tests/transcode.test.cjs
       - name: Test workshop including video fallbacks
