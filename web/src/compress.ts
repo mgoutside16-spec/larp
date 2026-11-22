@@ -60,7 +60,9 @@ function audioNeedsWork(file:File){
 // not reveal HEVC/AV1, 10-bit colour, codec profiles or container issues.
 // In the Windows master, always encode video into the supported player profile.
 export async function prepareForPlayers(file:File,kind:Kind,status:(message:string)=>void,force=false):Promise<File>{
-  // Video compatibility is mandatory in the desktop workshop, not an optional\n  // size optimization. The compression checkbox only controls other assets.\n  if(kind!=='video'&&!force&&!compressionEnabled())return file;
+  // Video compatibility is mandatory in the desktop workshop, not an optional
+  // size optimization. The compression checkbox only controls other assets.
+  if(kind!=='video'&&!force&&!compressionEnabled())return file;
   try{
     if(kind==='image'){
       status(`Уменьшаем «${file.name}»…`);
@@ -70,17 +72,22 @@ export async function prepareForPlayers(file:File,kind:Kind,status:(message:stri
     }
     const bridge=window.larpDesktop;
     if(!bridge)return file;
-    if(kind==='video'&&await videoAlreadySmall(file)){status('');return file;}
     if(kind==='video'||(kind==='audio'&&audioNeedsWork(file))){
       status(`Сжимаем «${file.name}» для телефонов… 0%`);
       const result=await bridge.transcode(kind,file.name,await file.arrayBuffer(),p=>status(`Сжимаем «${file.name}» для телефонов… ${Math.round(p)}%`));
-      if(!result||!result.bytes.byteLength)throw new Error('FFmpeg не создал совместимый файл.');\n      if(kind==='audio'&&result.bytes.byteLength>=file.size){status('');return file;}
+      if(!result||!result.bytes.byteLength)throw new Error('FFmpeg не создал совместимый файл.');
+      if(kind==='audio'&&result.bytes.byteLength>=file.size){status('');return file;}
       const type=result.name.endsWith('.m4a')?'audio/mp4':'video/mp4';
       const out=new File([result.bytes],result.name,{type});
       status(`«${file.name}»: ${mb(file.size)} → ${mb(out.size)} МБ`);
       return out;
     }
   }catch(error){
+    if(kind==='video'&&desktop()){
+      const message=`Не удалось подготовить совместимое видео «${file.name}»: ${(error as Error).message||'ошибка конвертации'}`;
+      status(message);
+      throw new Error(message);
+    }
     status(`Не удалось сжать «${file.name}», добавлен исходный файл. ${(error as Error).message||''}`.trim());
   }
   return file;
