@@ -1,5 +1,9 @@
 name: Build Windows master installer
 on:
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/build-windows.yml'
   push:
     branches: [main]
     paths:
