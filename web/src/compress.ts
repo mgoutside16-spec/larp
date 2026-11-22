@@ -56,21 +56,11 @@ function audioNeedsWork(file:File){
   return ['wav','flac','aif','aiff'].includes(ext)||file.size>8*1024**2;
 }
 
-async function videoAlreadySmall(file:File):Promise<boolean>{
-  const url=URL.createObjectURL(file);
-  try{
-    const video=document.createElement('video');video.preload='metadata';video.muted=true;
-    const loaded=new Promise<boolean>(res=>{video.onloadedmetadata=()=>res(true);video.onerror=()=>res(false);});
-    video.src=url;
-    const ok=await Promise.race([loaded,new Promise<boolean>(res=>setTimeout(()=>res(false),8000))]);
-    if(!ok||!video.duration||!video.videoWidth)return false;
-    const bitrate=file.size*8/video.duration;
-    return Math.max(video.videoWidth,video.videoHeight)<=1280&&bitrate<=2_500_000;
-  }finally{URL.revokeObjectURL(url);}
-}
-
+// A small MP4 is not necessarily Android-compatible: dimensions and bitrate do
+// not reveal HEVC/AV1, 10-bit colour, codec profiles or container issues.
+// In the Windows master, always encode video into the supported player profile.
 export async function prepareForPlayers(file:File,kind:Kind,status:(message:string)=>void,force=false):Promise<File>{
-  if(!force&&!compressionEnabled())return file;
+  // Video compatibility is mandatory in the desktop workshop, not an optional\n  // size optimization. The compression checkbox only controls other assets.\n  if(kind!=='video'&&!force&&!compressionEnabled())return file;
   try{
     if(kind==='image'){
       status(`Уменьшаем «${file.name}»…`);
@@ -84,7 +74,7 @@ export async function prepareForPlayers(file:File,kind:Kind,status:(message:stri
     if(kind==='video'||(kind==='audio'&&audioNeedsWork(file))){
       status(`Сжимаем «${file.name}» для телефонов… 0%`);
       const result=await bridge.transcode(kind,file.name,await file.arrayBuffer(),p=>status(`Сжимаем «${file.name}» для телефонов… ${Math.round(p)}%`));
-      if(!result||result.bytes.byteLength>=file.size){status('');return file;}
+      if(!result||!result.bytes.byteLength)throw new Error('FFmpeg не создал совместимый файл.');\n      if(kind==='audio'&&result.bytes.byteLength>=file.size){status('');return file;}
       const type=result.name.endsWith('.m4a')?'audio/mp4':'video/mp4';
       const out=new File([result.bytes],result.name,{type});
       status(`«${file.name}»: ${mb(file.size)} → ${mb(out.size)} МБ`);
