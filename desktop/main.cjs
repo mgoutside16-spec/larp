@@ -94,7 +94,7 @@ function ownCardArchive(event, token) {
 ipcMain.handle('larp:cards-begin', async (event, suggestedName) => {
   if (cardArchives.has(event.sender.id)) throw new Error('Другая выгрузка карточек ещё не завершена.');
   const {dialog} = require('electron');
-  const safeName = path.basename(String(suggestedName || 'карточки.zip')).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+  const safeName = path.basename(String(suggestedName || 'карточки.zip')).replace(/[^\p{L}\p{N}._ -]/gu, '_');
   const result = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), {
     title: 'Сохранить карточки для печати',
     defaultPath: path.join(app.getPath('documents'), safeName.endsWith('.zip') ? safeName : safeName + '.zip'),
