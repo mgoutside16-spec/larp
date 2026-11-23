@@ -5,7 +5,7 @@ SetCompressor /SOLID lzma
 
 !define APPNAME "Мир Снов для Граней"
 !ifndef VERSION
-  !define VERSION "1.1.3"
+  !define VERSION "1.1.4"
 !endif
 !define EXE "Мир Снов для Граней.exe"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\LARPStudio"
