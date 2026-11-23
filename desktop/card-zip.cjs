@@ -51,7 +51,7 @@ class CardZipWriter {
     if (data.length > MAX_ZIP32 || this.position + data.length + 100000 > MAX_ZIP32)
       throw new Error('ZIP превышает 4 ГиБ. Экспортируйте карточки меньшими группами.');
     // Avoid silently archiving a damaged or incorrectly encoded file.
-    if (data.length < 24 || data.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a')
+    if (data.length < 24 || Buffer.from(data.buffer, data.byteOffset, 8).toString('hex') !== '89504e470d0a1a0a')
       throw new Error('Карточка не является корректным PNG.');
     const filename = Buffer.from(name, 'utf8');
     const crc = crc32(data);
