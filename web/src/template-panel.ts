@@ -36,7 +36,7 @@ export async function mountTemplatePanel(root:HTMLElement,store:WorkshopStorage,
       </fieldset>
       <div class="tpl-actions"><button class="tpl-save" type="button">Сохранить шаблон группы</button><button class="tpl-export tpl-primary" type="button">Скачать карточки ZIP</button></div>
       <p class="tpl-summary"></p><p class="tpl-status" role="status" aria-live="polite"></p>
-      <p class="tpl-hint">В ZIP — PNG с кодами в исходном разрешении, 300 dpi. До 500 карточек за раз; объём ограничен памятью браузера. Настройки можно проверить и скачать до сохранения.</p>
+      <p class="tpl-hint">В ZIP — PNG с кодами в исходном разрешении, 300 dpi. До 500 карточек за раз. В Windows архив записывается на диск последовательно; в браузере действуют ограничения памяти. Настройки можно проверить и скачать до сохранения.</p>
     </div><div class="tpl-preview"><p class="tpl-empty">Выберите изображение или откройте пример.</p><canvas class="tpl-canvas" hidden tabindex="0" role="img" aria-label="Шаблон карточки. Перетащите код или перемещайте его стрелками."></canvas><p class="tpl-hint">Нажмите на изображение или перетащите код. Стрелки сдвигают код на 1 px, Shift + стрелки — на 10 px.</p></div></div>`;
   const get=<T extends HTMLElement>(selector:string)=>root.querySelector<T>(selector)!;
   const select=get<HTMLSelectElement>('.tpl-scope'),picker=get<HTMLInputElement>('.tpl-file');
@@ -154,36 +154,70 @@ export async function mountTemplatePanel(root:HTMLElement,store:WorkshopStorage,
   exportButton.addEventListener('click',async()=>{
     if(busy||!config||!image)return;
     if(!size.reportValidity())return;
+    const desktopZip=(window as unknown as {larpDesktop?:{
+      beginCardArchive?:(name:string)=>Promise<string|null>;
+      addCardToArchive?:(token:string,name:string,bytes:ArrayBuffer)=>Promise<boolean>;
+      finishCardArchive?:(token:string)=>Promise<string>;
+      abortCardArchive?:(token:string)=>Promise<boolean>;
+    }}).larpDesktop;
+    const streaming=!!(desktopZip?.beginCardArchive&&desktopZip.addCardToArchive&&desktopZip.finishCardArchive&&desktopZip.abortCardArchive);
     busy=true;message('Подготовка карточек…');update();
     const snapshot={...config},source=image,output=document.createElement('canvas');
+    let archiveToken:string|null=null;
     try{
       game=await store.game(gameId);if(disposed)return;
-      const selected=rows();checkTemplateExportBudget(selected.length,snapshot.width,snapshot.height,0);
-      const files:Record<string,Uint8Array>={};let bytes=0;
+      const selected=rows();
+      // Desktop disk-backed export only needs the 500-card limit.
+      // The browser still uses the legacy in-memory ZIP and its memory budget.
+      if(streaming){
+        requireValue(selected.length>0,'В выбранной группе нет записей.');
+        requireValue(selected.length<=500,'За один раз можно выгрузить до 500 карточек.');
+      }else checkTemplateExportBudget(selected.length,snapshot.width,snapshot.height,0);
+      const zipName=`карточки-${scope==='all'?'все':scope==='none'?'без-группы':`группа-${scope}`}.zip`;
+      if(streaming){
+        archiveToken=await desktopZip!.beginCardArchive!(zipName);
+        if(!archiveToken){message('Сохранение отменено.');return;}
+      }
+      const files:Record<string,Uint8Array>={};
+      let bytes=0;
       for(let index=0;index<selected.length;index++){
-        if(disposed)return;
+        if(disposed)throw new Error('Подготовка карточек прервана.');
         drawCode(output,source,snapshot,selected[index].code);
-        const blob=await new Promise<Blob>((resolve,reject)=>output.toBlob(value=>value?resolve(value):reject(new Error('Браузер не смог создать PNG. Уменьшите размер шаблона.')),'image/png'));
-        if(disposed)return;
-        // Check before allocating another encoded buffer; never silently omit a card.
-        checkTemplateExportBudget(selected.length,snapshot.width,snapshot.height,bytes+blob.size+21);
-        const png=pngWithDpi(new Uint8Array(await blob.arrayBuffer()));bytes+=png.length;files[`${selected[index].code}.png`]=png;
+        const blob=await new Promise<Blob>((resolve,reject)=>output.toBlob(value=>value?resolve(value):reject(new Error('Не удалось создать PNG карточки. Уменьшите исходное изображение.')),'image/png'));
+        if(disposed)throw new Error('Подготовка карточек прервана.');
+        if(!streaming)checkTemplateExportBudget(selected.length,snapshot.width,snapshot.height,bytes+blob.size+21);
+        const png=pngWithDpi(new Uint8Array(await blob.arrayBuffer()));
+        if(streaming){
+          await desktopZip!.addCardToArchive!(archiveToken!,`${selected[index].code}.png`,png.buffer.slice(png.byteOffset,png.byteOffset+png.byteLength) as ArrayBuffer);
+        }else{
+          bytes+=png.length;
+          files[`${selected[index].code}.png`]=png;
+        }
         message(`Готовлю карточки: ${index+1} из ${selected.length}…`);
         await new Promise<void>(resolve=>setTimeout(resolve,0));
       }
       output.width=0;output.height=0;
-      message('Собираю ZIP…');const {zip}=await import('fflate');if(disposed)return;
-      const archive=await new Promise<Uint8Array>((resolve,reject)=>zip(files,{level:0},(error,data)=>error?reject(error):resolve(data)));
-      if(disposed)return;
-      const zipName=`карточки-${scope==='all'?'все':scope==='none'?'без-группы':`группа-${scope}`}.zip`;
-      const desktopSave=(window as unknown as {larpDesktop?:{saveFile?:(name:string,bytes:ArrayBuffer)=>Promise<string|null>}}).larpDesktop?.saveFile;
-      if(desktopSave){void desktopSave(zipName,archive.slice().buffer as ArrayBuffer);}else{
-      const url=makeUrl(new Blob([new Uint8Array(archive)],{type:'application/zip'})),link=document.createElement('a');
-      link.href=url;link.download=zipName;link.click();
-      const timer=setTimeout(()=>{revoke(url);timers.delete(timer);},60000);timers.add(timer);}
-      message(`ZIP готов: ${selected.length} карточек PNG, 300 dpi. Загрузка началась.`);
+      if(streaming){
+        message('Завершаю ZIP-архив…');
+        const saved=await desktopZip!.finishCardArchive!(archiveToken!);
+        archiveToken=null;
+        if(!disposed)message(`Готово: ${selected.length} карточек PNG, 300 dpi. Сохранено: ${saved}`);
+      }else{
+        message('Собираю ZIP…');const {zip}=await import('fflate');if(disposed)return;
+        const archive=await new Promise<Uint8Array>((resolve,reject)=>zip(files,{level:0},(error,data)=>error?reject(error):resolve(data)));
+        if(disposed)return;
+        const url=makeUrl(new Blob([new Uint8Array(archive)],{type:'application/zip'})),link=document.createElement('a');
+        link.href=url;link.download=zipName;link.click();
+        const timer=setTimeout(()=>{revoke(url);timers.delete(timer);},60000);timers.add(timer);
+        message(`ZIP готов: ${selected.length} карточек PNG, 300 dpi. Загрузка началась.`);
+      }
     }catch(error){fail(error);}
-    finally{output.width=0;output.height=0;if(!disposed){busy=false;update();}}
+    finally{
+      if(archiveToken&&desktopZip?.abortCardArchive){
+        try{await desktopZip.abortCardArchive(archiveToken);}catch{/* partial ZIP cleanup is best effort */}
+      }
+      output.width=0;output.height=0;if(!disposed){busy=false;update();}
+    }
   },{signal:events.signal});
   await loadScope();
   return ()=>{disposed=true;version++;events.abort();for(const timer of timers)clearTimeout(timer);for(const url of urls)URL.revokeObjectURL(url);urls.clear();canvas.width=0;canvas.height=0;image=undefined;asset=undefined;};

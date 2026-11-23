@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld('larpDesktop', {
     finally { ipcRenderer.removeListener('larp:publish-progress', listener); }
   },
   saveFile: (name, bytes) => ipcRenderer.invoke('larp:save', {name, bytes}),
+  beginCardArchive: name => ipcRenderer.invoke('larp:cards-begin', name),
+  addCardToArchive: (token, name, bytes) => ipcRenderer.invoke('larp:cards-add', token, name, bytes),
+  finishCardArchive: token => ipcRenderer.invoke('larp:cards-finish', token),
+  abortCardArchive: token => ipcRenderer.invoke('larp:cards-abort', token),
   async transcode(kind, name, bytes, onProgress) {
     const listener = (_event, data) => { try { onProgress(data.percent); } catch { /* интерфейс мог закрыться */ } };
     ipcRenderer.on('larp:progress', listener);
