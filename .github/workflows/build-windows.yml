@@ -1,5 +1,10 @@
 name: Build Windows master installer
 on:
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - 'web/src/template-panel.ts'
+      - '.github/workflows/build-windows.yml'
   push:
     branches: [main]
     paths:
@@ -26,6 +31,11 @@ jobs:
           npm ci
           npm test
           npm run build
+      - name: Verify incremental card ZIP encoder
+        run: |
+          node --check desktop/main.cjs
+          node --check desktop/card-zip.cjs
+          node --test desktop/tests/card-zip.test.cjs
       - name: Bundle workshop and Windows FFmpeg
         run: |
           mkdir -p desktop/web desktop/bin
@@ -49,10 +59,10 @@ jobs:
           sudo apt-get install -y nsis
           cd desktop
           LANG=C.UTF-8 makensis installer.nsi
-          test -s release/Мир-Снов-для-Граней-установка-1.1.3.exe
+          test -s release/Мир-Снов-для-Граней-установка-1.1.4.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: Mir-Snov-Windows-1.1.3
-          path: desktop/release/Мир-Снов-для-Граней-установка-1.1.3.exe
+          name: Mir-Snov-Windows-1.1.4
+          path: desktop/release/Мир-Снов-для-Граней-установка-1.1.4.exe
           if-no-files-found: error
           retention-days: 30
