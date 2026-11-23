@@ -81,6 +81,60 @@ ipcMain.handle('larp:transcode', async (event, {kind, name, bytes}) => {
   }
 });
 
+// One active printable card archive per renderer; each PNG is persisted
+// immediately rather than retaining a full collection of PNGs and ZIP copies.
+const {CardZipWriter} = require('./card-zip.cjs');
+const cardArchives = new Map();
+function ownCardArchive(event, token) {
+  const active = cardArchives.get(event.sender.id);
+  if (!active || active.token !== token || active.sender !== event.sender)
+    throw new Error('Сеанс выгрузки карточек не найден. Повторите экспорт.');
+  return active;
+}
+ipcMain.handle('larp:cards-begin', async (event, suggestedName) => {
+  if (cardArchives.has(event.sender.id)) throw new Error('Другая выгрузка карточек ещё не завершена.');
+  const {dialog} = require('electron');
+  const safeName = path.basename(String(suggestedName || 'карточки.zip')).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+  const result = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), {
+    title: 'Сохранить карточки для печати',
+    defaultPath: path.join(app.getPath('documents'), safeName.endsWith('.zip') ? safeName : safeName + '.zip'),
+    filters: [{name: 'ZIP-архив', extensions: ['zip']}],
+  });
+  if (result.canceled || !result.filePath) return null;
+  if (cardArchives.has(event.sender.id)) throw new Error('Другая выгрузка карточек уже началась.');
+  const writer = new CardZipWriter(result.filePath);
+  const token = crypto.randomUUID();
+  cardArchives.set(event.sender.id, {token, writer, sender: event.sender});
+  event.sender.once('destroyed', () => {
+    const current = cardArchives.get(event.sender.id);
+    if (current?.token === token) {current.writer.abort(); cardArchives.delete(event.sender.id);}
+  });
+  return token;
+});
+ipcMain.handle('larp:cards-add', (event, token, name, bytes) => {
+  const active = ownCardArchive(event, token);
+  try {
+    active.writer.add(name, new Uint8Array(bytes));
+    return true;
+  } catch (error) {
+    active.writer.abort();
+    cardArchives.delete(event.sender.id);
+    throw error;
+  }
+});
+ipcMain.handle('larp:cards-finish', (event, token) => {
+  const active = ownCardArchive(event, token);
+  try {return active.writer.finish();}
+  finally {cardArchives.delete(event.sender.id);}
+});
+ipcMain.handle('larp:cards-abort', (event, token) => {
+  const active = cardArchives.get(event.sender.id);
+  if (!active || active.token !== token || active.sender !== event.sender) return false;
+  active.writer.abort();
+  cardArchives.delete(event.sender.id);
+  return true;
+});
+
 const FILTERS = {
   rpgpack: [{name: 'Игровой пакет', extensions: ['rpgpack']}],
   xlsx: [{name: 'Таблица Excel', extensions: ['xlsx']}],
